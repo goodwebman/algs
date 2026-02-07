@@ -25,4 +25,6 @@ const dfsIterative = (graph, start) => {
 			}
 		}
 	}
+
+	return visited
 }

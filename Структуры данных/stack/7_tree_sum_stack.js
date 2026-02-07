@@ -59,7 +59,7 @@ const treeSum = tree => {
 		let node = stack.pop()
 		sum += node.v
 		if (node.c) {
-			node.c.forEach(n => stack.push(n))
+			stack.push(...node.c)
 		}
 	}
 

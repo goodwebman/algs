@@ -1,3 +1,3 @@
 const isUnique = str => {
-	return new Set(str).size === String.length
+    return new Set(str).size === str.length
 }

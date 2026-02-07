@@ -1,6 +1,7 @@
 // 1 с рекурсией и двумя подмасивами
 
 const quickSort = arr => {
+	if (arr.length <= 1) return arr // остановка
 	const pivotIndex = Math.floor(arr.length / 2)
 	const pivot = arr[pivotIndex]
 	const left = []

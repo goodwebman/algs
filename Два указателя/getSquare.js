@@ -22,4 +22,4 @@ function getSquary(array) {
 const case1 = [-3, 2, 4]
 const case2 = [-2, -1, 3, 5]
 
-console.log(getSquary(case2))
+console.log(getSquare(case2))
