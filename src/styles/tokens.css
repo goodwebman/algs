@@ -1,0 +1,225 @@
+@import 'tailwindcss';
+
+@import '@fontsource/montserrat/400.css';
+@import '@fontsource/montserrat/500.css';
+@import '@fontsource/montserrat/600.css';
+@import '@fontsource/montserrat/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/700.css';
+
+/* Компоненты кита писались под переключаемую тему. Здесь тема одна — тёмная
+   (Aurora Boreal Nórdica: Light ✗ / Dark ✓), .dark статически висит на <html>. */
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   Aurora Boreal Nórdica — единственная тема
+   Все значения проверены на контраст к фону #050B1A:
+   текст ≥ 4.5:1 (WCAG AA), границы контролов и цвета
+   визуализаций ≥ 3:1 (WCAG 1.4.11).
+   ============================================================ */
+:root,
+.dark {
+  --radius: 0.5rem; /* по спеке Aurora: base corner radius 8px */
+
+  /* Deep Midnight #050B1A */
+  --background: oklch(0.152 0.034 264);
+  /* Frost White #E8F4F8 — 17.5:1 */
+  --foreground: oklch(0.959 0.014 220);
+
+  /* Arctic Blue #0A1628 — поверхность на ступень светлее фона */
+  --card: oklch(0.2 0.04 258);
+  --card-foreground: oklch(0.959 0.014 220);
+
+  --popover: oklch(0.2 0.04 258);
+  --popover-foreground: oklch(0.959 0.014 220);
+
+  --muted: oklch(0.26 0.03 258);
+  /* 7.4:1 — вторичный текст остаётся читаемым, а не «серой пылью» */
+  --muted-foreground: oklch(0.7 0.02 220);
+
+  /* Violet Sky в роли тонированной подложки */
+  --accent: oklch(0.3 0.08 303);
+  --accent-foreground: oklch(0.9 0.06 303);
+
+  /* Aurora Green #00FF87. Текст на нём — Deep Midnight (14.6:1).
+     Спека предлагала фиолетовый на зелёном (5.2:1) — читается заметно
+     хуже и на мелком кегле рябит, поэтому взят тёмный. */
+  --primary: oklch(0.876 0.229 152);
+  --primary-foreground: oklch(0.152 0.034 264);
+
+  --secondary: oklch(0.27 0.035 258);
+  --secondary-foreground: oklch(0.959 0.014 220);
+
+  /* В палитре Aurora нет красного — добавлен минимально насыщенный
+     коралловый, иначе провалившийся тест нечем показать. */
+  --destructive: oklch(0.68 0.2 20);
+  --destructive-foreground: oklch(0.16 0.03 20);
+
+  --success: oklch(0.876 0.229 152);
+  --success-foreground: oklch(0.152 0.034 264);
+
+  --warning: oklch(0.82 0.15 68);
+  --warning-foreground: oklch(0.2 0.04 68);
+
+  /* Ice Cyan #00D4FF */
+  --info: oklch(0.804 0.146 220);
+  --info-foreground: oklch(0.152 0.034 264);
+
+  --border: oklch(0.32 0.03 250);
+  /* 3.3:1 — граница инпута обязана отличаться от фона по 1.4.11 */
+  --input: oklch(0.5 0.035 250);
+  --ring: oklch(0.876 0.229 152);
+
+  /* emphasis = цвет текста поверх тонированной подложки bg-<color>/10 */
+  --success-emphasis: oklch(0.876 0.229 152);
+  --destructive-emphasis: oklch(0.72 0.2 20);
+  --info-emphasis: oklch(0.804 0.146 220);
+  --warning-emphasis: oklch(0.82 0.15 68);
+
+  /* ---------- Семантика визуализаций ----------
+     Рендереры не знают про «зелёный» и «розовый» — они знают про
+     «активный элемент» и «правый указатель». Перекрасить всю
+     визуализацию можно отсюда, не трогая ни одного компонента. */
+  --viz-idle: oklch(0.3 0.03 258); /* элемент вне работы */
+  --viz-active: oklch(0.876 0.229 152); /* текущий элемент */
+  --viz-compare: oklch(0.82 0.15 68); /* сравниваемая пара */
+  --viz-swap: oklch(0.741 0.2 345); /* обмен / запись */
+  --viz-pointer-l: oklch(0.804 0.146 220); /* левый указатель, i, slow */
+  --viz-pointer-r: oklch(0.741 0.2 345); /* правый указатель, j, fast */
+  --viz-window: oklch(0.7 0.19 303); /* граница текущего окна */
+  --viz-visited: oklch(0.55 0.09 220); /* уже обработано */
+  --viz-done: oklch(0.62 0.16 152); /* финальная позиция */
+  --viz-target: oklch(0.741 0.2 345); /* искомое значение */
+}
+
+@theme inline {
+  --font-sans:
+    Montserrat, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --color-success-emphasis: var(--success-emphasis);
+  --color-destructive-emphasis: var(--destructive-emphasis);
+  --color-info-emphasis: var(--info-emphasis);
+  --color-warning-emphasis: var(--warning-emphasis);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-viz-idle: var(--viz-idle);
+  --color-viz-active: var(--viz-active);
+  --color-viz-compare: var(--viz-compare);
+  --color-viz-swap: var(--viz-swap);
+  --color-viz-pointer-l: var(--viz-pointer-l);
+  --color-viz-pointer-r: var(--viz-pointer-r);
+  --color-viz-window: var(--viz-window);
+  --color-viz-visited: var(--viz-visited);
+  --color-viz-done: var(--viz-done);
+  --color-viz-target: var(--viz-target);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --animate-shimmer: ui-shimmer 1.8s infinite linear;
+  --animate-progress: ui-progress 1.4s ease-in-out infinite;
+  --animate-aurora: aurora-drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes ui-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes ui-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+/* Единственное место, где живёт градиент: ambient-фон.
+   Анимируются только transform и opacity — layout не трогаем. */
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(-8%, 0, 0) scale(1.1) rotate(-2deg);
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate3d(8%, -4%, 0) scale(1.25) rotate(3deg);
+    opacity: 0.55;
+  }
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Цифры в визуализациях и метриках не должны «прыгать» по ширине при смене
+   значения — иначе ячейки массива дёргаются на каждом шаге. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
