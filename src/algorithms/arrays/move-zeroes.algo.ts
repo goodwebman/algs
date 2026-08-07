@@ -21,6 +21,7 @@ export function* traceMoveZeroes(input: readonly number[]): AlgoTrace<VizState, 
 
   const ids = nums.map((value, i) => `${value}#${i}`);
 
+  // #hide
   const view = (fast: number, marks: Record<number, MarkKind>, note: string): VizState => ({
     kind: 'array',
     data: nums,
@@ -32,6 +33,7 @@ export function* traceMoveZeroes(input: readonly number[]): AlgoTrace<VizState, 
     marks,
     caption: note,
   });
+  // #endhide
 
   for (let fast = 0; fast < nums.length; fast += 1) {
     if (nums[fast] === 0) { // @check

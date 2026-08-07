@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import { getAlgo } from '@/algorithms/registry';
 import { ComplexityChart } from '@/viz/ComplexityChart';
+import { OriginalSource } from '@/viz/OriginalSource';
 import { TracePlayer } from '@/viz/TracePlayer';
 import { Playground } from '@/sandbox/Playground';
 import { getTask } from '@/tasks/registry';
@@ -118,4 +119,5 @@ export const mdxComponents: MDXComponents = {
   Note,
   Compare,
   ComplexityChart,
+  OriginalSource,
 };

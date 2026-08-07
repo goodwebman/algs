@@ -67,24 +67,21 @@ const PlayerBody = ({ algo, presetIndex }: PlayerBodyProps) => {
     // висит на группе кнопок (там фокус и находится), а не на контейнере.
     <section
       aria-label={`Визуализация: ${algo.meta.title}`}
-      className="flex flex-col gap-4 rounded-xl border border-border bg-card/60 p-4 backdrop-blur-sm"
+      className="flex flex-col gap-3 rounded-xl border border-border bg-card/60 p-3 backdrop-blur-sm sm:p-4"
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="min-h-44">{player.frame && <VizRenderer state={player.frame.state} />}</div>
-          <Legend states={states} />
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex min-h-40 items-center justify-center">
+          {player.frame && <VizRenderer state={player.frame.state} />}
         </div>
-
-        <div className="min-w-0">
-          <CodeListing source={source} activeLine={lineOfAnchor(source, player.frame?.at)} />
-        </div>
+        <Legend states={states} />
       </div>
 
-      {/* Комментарий к шагу — он же текстовая альтернатива картинки для скринридера */}
+      {/* Комментарий к шагу — он же текстовая альтернатива картинки для скринридера.
+          Две строки: одна режет длинные пояснения, три раздувают блок. */}
       <p
         role="status"
         aria-live="polite"
-        className="min-h-10 rounded-lg bg-muted/40 px-3 py-2 text-center text-sm text-foreground"
+        className="flex min-h-11 items-center justify-center rounded-lg bg-muted/40 px-3 py-2 text-center text-sm text-balance text-foreground"
       >
         {player.frame?.note ?? '—'}
       </p>
@@ -94,7 +91,7 @@ const PlayerBody = ({ algo, presetIndex }: PlayerBodyProps) => {
       <div
         role="toolbar"
         aria-label="Управление воспроизведением"
-        className="flex flex-wrap items-center justify-center gap-3"
+        className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2"
         onKeyDown={onKeyDown}
       >
         <div className="flex items-center gap-1">
@@ -166,6 +163,10 @@ const PlayerBody = ({ algo, presetIndex }: PlayerBodyProps) => {
           </select>
         </label>
       </div>
+
+      {/* Листинг во всю ширину карточки и целиком по высоте — при узкой
+          колонке рядом с визуализацией он резался и по строкам, и по длине. */}
+      <CodeListing source={source} activeLine={lineOfAnchor(source, player.frame?.at)} />
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
         <MetricsBar metrics={player.frame?.totals ?? last?.totals ?? { comparisons: 0, swaps: 0, reads: 0, writes: 0, extraMemory: 0 }} />

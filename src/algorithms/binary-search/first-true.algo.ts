@@ -26,6 +26,7 @@ export function* traceFirstTrue(nums: readonly number[], threshold: number): Alg
 
   const predicate = (index: number) => nums[index] >= threshold;
 
+  // #hide
   const view = (mid: number | null, marks: Record<number, MarkKind>, note: string): VizState => ({
     kind: 'array',
     data: nums,
@@ -42,6 +43,7 @@ export function* traceFirstTrue(nums: readonly number[], threshold: number): Alg
     },
     caption: `${note} · ищем первый элемент ≥ ${threshold}`,
   });
+  // #endhide
 
   yield {
     state: view(null, {}, 'старт'),

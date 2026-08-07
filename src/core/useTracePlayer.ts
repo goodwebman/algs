@@ -30,7 +30,7 @@ export interface TracePlayer {
   setSpeed: (speed: number) => void;
 }
 
-export const SPEED_STEPS = [0.5, 1, 2, 4, 8, 16, 32] as const;
+export const SPEED_STEPS = [0.5, 1, 2, 4, 8, 16] as const;
 
 /**
  * Плеер трассировки.
@@ -48,7 +48,9 @@ export const useTracePlayer = (
   makeTrace: () => AlgoTrace<VizState, unknown>,
   options: TracePlayerOptions = {},
 ): TracePlayer => {
-  const { initialSpeed = 4, autoPlay = false } = options;
+  // 1 шаг/сек: на 4× подпись под визуализацией сменяется быстрее, чем её
+  // успеваешь дочитать, а смысл шага именно в ней. Ускоряться — осознанно.
+  const { initialSpeed = 1, autoPlay = false } = options;
 
   const run = useMemo(() => {
     try {

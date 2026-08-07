@@ -22,12 +22,14 @@ import type { MarkKind, VizState } from '@/viz/types';
 export function* traceHeapOperations(values: readonly number[]): AlgoTrace<VizState, number[]> {
   const heap: number[] = [];
 
+  // #hide
   const view = (marks: Record<number, MarkKind>, note: string): VizState => ({
     kind: 'heap',
     items: heap,
     marks,
     caption: note,
   });
+  // #endhide
 
   /** Просеивание вверх: новый элемент всплывает, пока меньше родителя. */
   function* siftUp(start: number): Generator<Step<VizState>, void, void> {

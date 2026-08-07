@@ -22,6 +22,7 @@ export function* traceInsertionSort(input: readonly number[]): AlgoTrace<VizStat
   const nums = [...input];
   const ids = nums.map((value, i) => `${value}#${i}`);
 
+  // #hide
   const view = (sortedUpTo: number, marks: Record<number, MarkKind>, note: string): VizState => ({
     kind: 'array',
     data: nums,
@@ -33,6 +34,7 @@ export function* traceInsertionSort(input: readonly number[]): AlgoTrace<VizStat
     },
     caption: note,
   });
+  // #endhide
 
   for (let i = 1; i < nums.length; i += 1) {
     const current = nums[i];

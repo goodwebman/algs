@@ -34,6 +34,7 @@ export function* traceTraversal(root: BinaryNode, order: Order): AlgoTrace<VizSt
   const result: number[] = [];
   const visited = new Set<string>();
 
+  // #hide
   const decorate = (node: BinaryNode | undefined, activeId?: string): TreeNodeView | null => {
     if (!node) return null;
     const children = [decorate(node.left, activeId), decorate(node.right, activeId)].filter(
@@ -46,12 +47,15 @@ export function* traceTraversal(root: BinaryNode, order: Order): AlgoTrace<VizSt
       children,
     };
   };
+  // #endhide
 
+  // #hide
   const view = (activeId?: string): VizState => ({
     kind: 'tree',
     root: decorate(root, activeId),
     caption: `${ORDER_LABEL[order]} · собрано: [${result.join(', ')}]`,
   });
+  // #endhide
 
   function* emit(node: BinaryNode): Generator<Step<VizState>, void, void> {
     result.push(node.value);

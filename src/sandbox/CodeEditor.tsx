@@ -13,12 +13,15 @@ interface CodeEditorProps {
 }
 
 export const CodeEditor = ({ value, onChange, ariaLabel = 'Редактор кода', minHeight = '18rem' }: CodeEditorProps) => (
-  <div className="overflow-hidden rounded-lg border border-border bg-background/60">
+  <div className="overflow-hidden rounded-lg border border-border bg-card/40">
     <CodeMirror
       value={value}
       onChange={onChange}
       extensions={extensions}
       minHeight={minHeight}
+      // 'none', а не 'light' (дефолт обёртки): светлая тема ставит белый фон
+      // поверх нашего, и код становится нечитаемым на тёмной странице.
+      theme="none"
       basicSetup={{
         lineNumbers: true,
         foldGutter: false,
@@ -26,6 +29,9 @@ export const CodeEditor = ({ value, onChange, ariaLabel = 'Редактор ко
         autocompletion: true,
         bracketMatching: true,
         closeBrackets: true,
+        // Своя подсветка из editor-theme. Дефолтная рассчитана на белый фон
+        // и, будучи добавленной последней, перебивает нашу.
+        syntaxHighlighting: false,
       }}
       aria-label={ariaLabel}
     />

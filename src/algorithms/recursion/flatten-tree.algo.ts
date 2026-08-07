@@ -13,6 +13,9 @@ import type { TreeNodeView, VizState } from '@/viz/types';
  *
  * Здесь — собрать все значения узлов в плоский массив (pre-order: узел,
  * затем дети слева направо).
+ *
+ * Аккумулятор передаётся вторым аргументом со значением по умолчанию:
+ * рекурсия дописывает в один и тот же массив, а не склеивает промежуточные.
  */
 interface TreeNode {
   id: string;
@@ -21,8 +24,9 @@ interface TreeNode {
 }
 
 export function* traceFlattenTree(root: TreeNode): AlgoTrace<VizState, number[]> {
-  const result: number[] = [];
+  // #hide
   const visited = new Set<string>();
+  let result: number[] = [];
 
   const view = (note: string, activeId?: string): VizState => {
     const decorate = (node: TreeNode): TreeNodeView => {
@@ -37,23 +41,39 @@ export function* traceFlattenTree(root: TreeNode): AlgoTrace<VizState, number[]>
     };
     return { kind: 'tree', root: decorate(root), caption: `${note} · собрано: [${result.join(', ')}]` };
   };
+  // #endhide
 
-  function* walk(node: TreeNode): Generator<Step<VizState>, void, void> {
-    yield { state: view(`посещаем узел ${node.value}`, node.id), note: `Заходим в узел ${node.value}.` };
+  function* flatten(
+    list: readonly TreeNode[],
+    acc: number[] = [],
+  ): Generator<Step<VizState>, number[], void> {
+    // #hide
+    result = acc;
+    // #endhide
 
-    result.push(node.value); // @emit
-    visited.add(node.id);
-    yield { state: view(`добавили ${node.value}`), at: 'emit', note: `Добавляем ${node.value} в результат.`, metrics: { writes: 1 } };
+    for (const node of list) { // @loop
+      yield { state: view(`посещаем узел ${node.value}`, node.id), note: `Заходим в узел ${node.value}.` };
 
-    for (const child of node.children ?? []) { // @children
-      yield* walk(child);
+      acc.push(node.value); // @emit
+
+      // #hide
+      visited.add(node.id);
+      // #endhide
+
+      yield { state: view(`добавили ${node.value}`), at: 'emit', note: `Добавляем ${node.value} в результат.`, metrics: { writes: 1 } };
+
+      if (node.children?.length) { // @recurse
+        yield* flatten(node.children, acc);
+      }
     }
+
+    return acc;
   }
 
-  yield* walk(root);
-  yield { state: view('обход завершён'), note: `Все узлы собраны: [${result.join(', ')}]` };
+  const flat = yield* flatten([root]);
+  yield { state: view('обход завершён'), note: `Все узлы собраны: [${flat.join(', ')}]` };
 
-  return result;
+  return flat;
 }
 // #endregion
 

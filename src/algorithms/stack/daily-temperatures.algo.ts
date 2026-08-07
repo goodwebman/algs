@@ -19,9 +19,10 @@ import type { VizState } from '@/viz/types';
  * вложенный while.
  */
 export function* traceDailyTemperatures(temps: readonly number[]): AlgoTrace<VizState, number[]> {
-  const answer = new Array<number>(temps.length).fill(0);
+  const res = new Array<number>(temps.length).fill(0);
   const stack: number[] = [];
 
+  // #hide
   const view = (index: number, note: string): VizState => ({
     kind: 'composite',
     panels: [
@@ -45,24 +46,25 @@ export function* traceDailyTemperatures(temps: readonly number[]): AlgoTrace<Viz
         title: 'ответ',
         view: {
           kind: 'array',
-          data: answer,
-          marks: Object.fromEntries(answer.map((v, i) => [i, v > 0 ? ('done' as const) : undefined])),
+          data: res,
+          marks: Object.fromEntries(res.map((v, i) => [i, v > 0 ? ('done' as const) : undefined])),
         },
       },
     ],
     caption: note,
   });
+  // #endhide
 
-  for (let i = 0; i < temps.length; i += 1) {
+  for (let i = 0; i < temps.length; i++) {
     // Все дни на вершине, что холоднее текущего, закрываются разом.
-    while (stack.length > 0 && temps[stack[stack.length - 1]] < temps[i]) { // @resolve
-      const day = stack.pop()!;
-      answer[day] = i - day;
+    while (stack.length && temps[i] > temps[stack[stack.length - 1]]) { // @resolve
+      const prevIndex = stack.pop()!;
+      res[prevIndex] = i - prevIndex;
 
       yield {
-        state: view(i, `день ${day} закрыт: ждать ${i - day}`),
+        state: view(i, `день ${prevIndex} закрыт: ждать ${i - prevIndex}`),
         at: 'resolve',
-        note: `${temps[i]} теплее, чем ${temps[day]} (день ${day}) — ответ для него ${i - day}.`,
+        note: `${temps[i]} теплее, чем ${temps[prevIndex]} (день ${prevIndex}) — ответ для него ${i - prevIndex}.`,
         metrics: { comparisons: 1, writes: 1 },
       };
     }
@@ -83,7 +85,7 @@ export function* traceDailyTemperatures(temps: readonly number[]): AlgoTrace<Viz
     note: `Дни, оставшиеся на стеке (${stack.length}), так и не дождались тепла — у них 0.`,
   };
 
-  return answer;
+  return res;
 }
 // #endregion
 

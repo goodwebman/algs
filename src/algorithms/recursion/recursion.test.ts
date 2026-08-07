@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { fibonacci } from './fibonacci.algo';
 import { flattenTree } from './flatten-tree.algo';
 
-describe('fibonacci (с мемоизацией)', () => {
+describe('fibonacci (наивная рекурсия)', () => {
   it('считает классические значения', () => {
     expect(fibonacci(0)).toBe(0);
     expect(fibonacci(1)).toBe(1);
@@ -12,12 +12,13 @@ describe('fibonacci (с мемоизацией)', () => {
     expect(fibonacci(10)).toBe(55);
   });
 
-  // fib(40) без мемоизации — ~миллиард вызовов, завис бы на секунды.
-  // Мемоизация делает это мгновенно — это и есть доказательство, что она работает.
-  it('мемоизация делает большие n мгновенными', () => {
-    expect(fibonacci(40)).toBe(102334155);
+  it('отрицательное n даёт 0', () => {
+    expect(fibonacci(-5)).toBe(0);
   });
 
+  // Только до 15: без мемоизации число вызовов растёт экспоненциально,
+  // и на n ≈ 20 трассировка упирается в лимит шагов. Это не баг теста,
+  // а ровно тот факт, ради которого задача и стоит в теме рекурсии.
   it('совпадает с итеративной формулой', () => {
     const iter = (n: number) => {
       if (n <= 1) return n;
@@ -26,7 +27,7 @@ describe('fibonacci (с мемоизацией)', () => {
       for (let i = 2; i <= n; i += 1) [a, b] = [b, a + b];
       return b;
     };
-    for (let n = 0; n <= 30; n += 1) {
+    for (let n = 0; n <= 15; n += 1) {
       expect(fibonacci(n)).toBe(iter(n));
     }
   });

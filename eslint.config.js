@@ -5,7 +5,11 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules', 'src/ui/**'] },
+  // originals/ — код первой версии репозитория, сохранённый дословно.
+  // Линтер там прав по существу (не определённый console, неиспользуемые
+  // объявления, `ev` без стрелки в event-emitter), но править эти файлы
+  // нельзя: они показываются на сайте как исторический исходник.
+  { ignores: ['dist', 'coverage', 'node_modules', 'src/ui/**', 'originals/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   // Именно flat.recommended: у пресета `recommended-latest` в v7

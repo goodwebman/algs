@@ -21,6 +21,7 @@ export function* traceRemoveDuplicates(input: readonly number[]): AlgoTrace<VizS
 
   let slow = 0; // @slow
 
+  // #hide
   const view = (fast: number, marks: Record<number, MarkKind>, note: string): VizState => ({
     kind: 'array',
     data: nums,
@@ -34,6 +35,7 @@ export function* traceRemoveDuplicates(input: readonly number[]): AlgoTrace<VizS
     },
     caption: `${note} · длина ответа: ${slow + 1}`,
   });
+  // #endhide
 
   for (let fast = 1; fast < nums.length; fast += 1) {
     if (nums[fast] === nums[slow]) { // @compare

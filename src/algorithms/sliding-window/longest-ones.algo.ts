@@ -16,10 +16,10 @@ import type { VizState } from '@/viz/types';
  */
 export function* traceLongestOnes(nums: readonly number[], k: number): AlgoTrace<VizState, number> {
   let left = 0;
-  let zeros = 0;
-  let best = 0;
-  let bestFrom = 0;
+  let zeroes = 0;
+  let ans = 0;
 
+  // #hide
   const view = (right: number, note: string): VizState => ({
     kind: 'array',
     data: nums,
@@ -28,25 +28,23 @@ export function* traceLongestOnes(nums: readonly number[], k: number): AlgoTrace
       { name: 'left', index: left, tone: 'l' },
       { name: 'right', index: right, tone: 'r' },
     ],
-    marks: Object.fromEntries(
-      nums.map((_, i) => [i, i >= bestFrom && i < bestFrom + best ? ('done' as const) : undefined]),
-    ),
-    caption: `${note} · нулей в окне ${zeros} из ${k}, лучший ответ ${best}`,
+    caption: `${note} · нулей в окне ${zeroes} из ${k}, лучший ответ ${ans}`,
   });
+  // #endhide
 
-  for (let right = 0; right < nums.length; right += 1) {
-    if (nums[right] === 0) zeros += 1; // @expand
+  for (let right = 0; right < nums.length; right++) {
+    if (nums[right] === 0) zeroes += 1; // @expand
 
     yield {
       state: view(right, `вошёл ${nums[right]}`),
       at: 'expand',
-      note: `Расширили окно до индекса ${right}. Нулей внутри: ${zeros}.`,
+      note: `Расширили окно до индекса ${right}. Нулей внутри: ${zeroes}.`,
       metrics: { reads: 1 },
     };
 
-    while (zeros > k) { // @shrink
-      if (nums[left] === 0) zeros -= 1;
-      left += 1;
+    while (zeroes > k) { // @shrink
+      if (nums[left] === 0) zeroes -= 1;
+      left++;
 
       yield {
         state: view(right, 'сжимаем слева'),
@@ -56,22 +54,20 @@ export function* traceLongestOnes(nums: readonly number[], k: number): AlgoTrace
       };
     }
 
-    // right - left + 1, а НЕ right - left: окно включает оба конца.
-    // Потеря единицы здесь — классическая ошибка, ответ занижается ровно на 1.
-    if (right - left + 1 > best) { // @better
-      best = right - left + 1;
-      bestFrom = left;
+    // Правка против исходного решения: там было right - left, без +1.
+    // Окно включает оба конца, и ответ занижался ровно на единицу:
+    // на [1,1,0,1,1,1] с k=1 получалось 5 вместо 6.
+    ans = Math.max(ans, right - left + 1); // @better
 
-      yield {
-        state: view(right, `новый максимум ${best}`),
-        at: 'better',
-        note: `Окно [${left}…${right}] длиной ${best} — лучшее из встреченных.`,
-        metrics: { comparisons: 1 },
-      };
-    }
+    yield {
+      state: view(right, `длина окна ${right - left + 1}`),
+      at: 'better',
+      note: `Окно [${left}…${right}] длиной ${right - left + 1}, лучший ответ ${ans}.`,
+      metrics: { comparisons: 1 },
+    };
   }
 
-  return best;
+  return ans;
 }
 // #endregion
 

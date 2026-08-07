@@ -15,58 +15,58 @@ import type { MarkKind, VizState } from '@/viz/types';
  * Это и есть разница между O(n·k) и O(n).
  */
 export function* traceMaxSumFixed(nums: readonly number[], k: number): AlgoTrace<VizState, number> {
+  // Правка против исходного решения: там был только guard k > nums.length,
+  // и при k = 0 наружу уходила -Infinity вместо 0.
   if (k <= 0 || k > nums.length) return 0;
 
-  let sum = 0;
-  for (let i = 0; i < k; i += 1) sum += nums[i]; // @build
+  let maxSum = -Infinity;
+  let windowSum = 0;
+  let left = 0;
 
-  let best = sum;
-  let bestStart = 0;
-
-  const view = (from: number, to: number, marks: Record<number, MarkKind>, note: string): VizState => ({
+  // #hide
+  const view = (right: number, marks: Record<number, MarkKind>, note: string): VizState => ({
     kind: 'array',
     data: nums,
-    window: { from, to },
-    marks: {
-      ...Object.fromEntries(
-        nums.map((_, i) => [i, i >= bestStart && i < bestStart + k ? ('done' as const) : undefined]),
-      ),
-      ...marks,
-    },
-    caption: `${note} · лучшая сумма ${best}`,
+    window: right >= left ? { from: left, to: right } : null,
+    marks,
+    caption: `${note} · лучшая сумма ${maxSum === -Infinity ? '—' : maxSum}`,
   });
+  // #endhide
 
-  yield {
-    state: view(0, k - 1, {}, `первое окно, сумма ${sum}`),
-    at: 'build',
-    note: `Собрали первое окно из ${k} элементов: сумма ${sum}.`,
-    metrics: { reads: k },
-  };
-
-  for (let right = k; right < nums.length; right += 1) {
-    const left = right - k;
-    sum += nums[right] - nums[left]; // @slide
+  for (let right = 0; right < nums.length; right++) {
+    windowSum += nums[right]; // @expand
 
     yield {
-      state: view(left + 1, right, { [right]: 'active', [left]: 'excluded' }, `сумма ${sum}`),
-      at: 'slide',
-      note: `Вошло ${nums[right]}, вышло ${nums[left]} → сумма ${sum}. Две операции вместо ${k}.`,
-      metrics: { reads: 2, comparisons: 1 },
+      state: view(right, { [right]: 'active' }, `вошло ${nums[right]}, сумма окна ${windowSum}`),
+      at: 'expand',
+      note: `Добавили ${nums[right]} справа: сумма окна ${windowSum}, ширина ${right - left + 1}.`,
+      metrics: { reads: 1 },
     };
 
-    if (sum > best) {
-      best = sum;
-      bestStart = left + 1; // @better
+    // Окно доросло до k — сравниваем и сразу сдвигаем левую границу.
+    if (right - left + 1 === k) { // @full
+      maxSum = Math.max(maxSum, windowSum);
 
       yield {
-        state: view(left + 1, right, { [right]: 'target' }, `новый максимум ${best}`),
-        at: 'better',
-        note: `${sum} больше прежнего максимума — запоминаем окно [${left + 1}…${right}].`,
+        state: view(right, { [right]: 'target' }, `окно [${left}…${right}] = ${windowSum}`),
+        at: 'full',
+        note: `Полное окно [${left}…${right}] даёт ${windowSum}. Лучшая сумма: ${maxSum}.`,
+        metrics: { comparisons: 1 },
+      };
+
+      windowSum -= nums[left]; // @slide
+      left++;
+
+      yield {
+        state: view(right, { [left - 1]: 'excluded' }, `вышло ${nums[left - 1]}`),
+        at: 'slide',
+        note: `Вычли ${nums[left - 1]} слева — сумму следующего окна не пересчитываем с нуля.`,
+        metrics: { reads: 1 },
       };
     }
   }
 
-  return best;
+  return maxSum;
 }
 // #endregion
 

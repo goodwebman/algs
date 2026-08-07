@@ -7,20 +7,22 @@ import type { MarkKind, VizState } from '@/viz/types';
 /**
  * Палиндром с игнорированием регистра и всего, что не буква и не цифра.
  *
- * Указатели идут навстречу и пропускают мусор ПО ХОДУ, а не после очистки
- * строки. Разница принципиальна по памяти: очистка через regex создаёт
- * вторую строку размером с исходную — O(n), здесь же O(1).
+ * Сначала чистим строку одной регуляркой, потом идём двумя указателями
+ * навстречу: пока символы совпадают — сдвигаем оба, первое расхождение
+ * закрывает вопрос.
  */
-const isAlphanumeric = (char: string): boolean => /[\p{L}\p{N}]/u.test(char);
-
 export function* traceValidPalindrome(input: string): AlgoTrace<VizState, boolean> {
-  const chars = [...input];
+  // Правка против исходного решения: там регулярка была /[^a-z0-9а-я]/g,
+  // и «ё» вырезалась вместе с пунктуацией — «ёа» превращалось в «а» и
+  // считалось палиндромом. \p{L}\p{N} закрывает весь юникод.
+  const clean = [...input.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')]; // @clean
   let left = 0;
-  let right = chars.length - 1;
+  let right = clean.length - 1;
 
+  // #hide
   const view = (marks: Record<number, MarkKind>, note: string): VizState => ({
     kind: 'array',
-    data: chars.map((char) => (char === ' ' ? '␣' : char)),
+    data: clean,
     pointers: [
       { name: 'left', index: left, tone: 'l' },
       { name: 'right', index: right, tone: 'r' },
@@ -28,55 +30,35 @@ export function* traceValidPalindrome(input: string): AlgoTrace<VizState, boolea
     marks,
     caption: note,
   });
+  // #endhide
+
+  yield {
+    state: view({}, `очищено: «${clean.join('')}»`),
+    at: 'clean',
+    note: `Регистр вниз, пунктуация и пробелы выброшены: «${clean.join('')}».`,
+    memoryPeak: clean.length,
+  };
 
   while (left < right) {
-    // Пропускаем всё, что не буква и не цифра. Условие left < right
-    // внутри обязательно: строка из одних знаков препинания иначе уведёт
-    // указатель за границу массива.
-    if (!isAlphanumeric(chars[left])) {
-      // @skipLeft
+    if (clean[left] !== clean[right]) { // @compare
       yield {
-        state: view({ [left]: 'excluded' }, `«${chars[left]}» — не буква, пропускаем`),
-        at: 'skipLeft',
-        note: `Символ «${chars[left]}» слева не буква и не цифра — игнорируем.`,
-      };
-      left += 1;
-      continue;
-    }
-
-    if (!isAlphanumeric(chars[right])) {
-      // @skipRight
-      yield {
-        state: view({ [right]: 'excluded' }, `«${chars[right]}» — не буква, пропускаем`),
-        at: 'skipRight',
-        note: `Символ «${chars[right]}» справа не буква и не цифра — игнорируем.`,
-      };
-      right -= 1;
-      continue;
-    }
-
-    const a = chars[left].toLowerCase();
-    const b = chars[right].toLowerCase(); // @compare
-
-    if (a !== b) {
-      yield {
-        state: view({ [left]: 'swap', [right]: 'swap' }, `«${a}» ≠ «${b}» — не палиндром`),
+        state: view({ [left]: 'swap', [right]: 'swap' }, `«${clean[left]}» ≠ «${clean[right]}»`),
         at: 'compare',
-        note: `«${a}» и «${b}» не совпали — дальше можно не смотреть.`,
+        note: `«${clean[left]}» и «${clean[right]}» не совпали — дальше можно не смотреть.`,
         metrics: { comparisons: 1 },
       };
       return false;
     }
 
     yield {
-      state: view({ [left]: 'done', [right]: 'done' }, `«${a}» = «${b}»`),
+      state: view({ [left]: 'done', [right]: 'done' }, `«${clean[left]}» = «${clean[right]}»`),
       at: 'compare',
-      note: `«${a}» совпал с «${b}» — сдвигаем оба указателя внутрь.`,
+      note: `«${clean[left]}» совпал с «${clean[right]}» — сдвигаем оба указателя внутрь.`,
       metrics: { comparisons: 1 },
     };
 
-    left += 1;
-    right -= 1;
+    left++;
+    right--;
   }
 
   yield {
@@ -96,7 +78,8 @@ export default defineAlgo({
     title: 'Проверка на палиндром',
     topic: 'two-pointers',
     summary: 'Проверить, читается ли строка одинаково в обе стороны, игнорируя регистр и пунктуацию.',
-    complexity: { time: 'O(n)', space: 'O(1)', growth: 'O(n)' },
+    // O(n) по памяти: очищенная копия строки живёт до конца проверки.
+    complexity: { time: 'O(n)', space: 'O(n)', growth: 'O(n)' },
     difficulty: 'easy',
     leetcode: { id: 125, title: 'valid-palindrome' },
     tags: ['два указателя', 'строки', 'юникод'],
@@ -106,11 +89,11 @@ export default defineAlgo({
     {
       label: '"A man, a plan, a canal"',
       args: ['A man, a plan, a canal: Panama'] as const,
-      hint: 'Классика: пунктуация и пробелы пропускаются на лету.',
+      hint: 'Классика: пунктуация и пробелы уходят на этапе очистки.',
     },
     { label: '"race a car"', args: ['race a car'] as const, hint: 'Не палиндром — выход на первом же несовпадении.' },
-    { label: '"А роза упала на лапу Азора"', args: ['А роза упала на лапу Азора'] as const, hint: 'Кириллица: \\p{L} ловит её, диапазон [а-я] — нет.' },
-    { label: '".,!"', args: ['.,!'] as const, hint: 'Одни знаки препинания: пустая строка считается палиндромом.' },
+    { label: '"А роза упала на лапу Азора"', args: ['А роза упала на лапу Азора'] as const, hint: 'Кириллица: \\p{L} ловит её, диапазон [а-я] — терял «ё».' },
+    { label: '".,!"', args: ['.,!'] as const, hint: 'Одни знаки препинания: после очистки строка пуста — это палиндром.' },
   ],
   trace: traceValidPalindrome,
   formatResult: (result) => (result ? 'палиндром' : 'не палиндром'),

@@ -17,8 +17,9 @@ type Result = readonly [number, number] | null;
  * этот вопрос Map даёт за O(1).
  */
 export function* traceTwoSum(nums: readonly number[], target: number): AlgoTrace<VizState, Result> {
-  const seen = new Map<number, number>();
+  const map = new Map<number, number>();
 
+  // #hide
   const view = (index: number, marks: Record<number, MarkKind>, highlightKey?: number): VizState => ({
     kind: 'composite',
     panels: [
@@ -35,7 +36,7 @@ export function* traceTwoSum(nums: readonly number[], target: number): AlgoTrace
         title: 'что уже видели: значение → индекс',
         view: {
           kind: 'hashmap',
-          entries: [...seen].map(([key, value]) => ({
+          entries: [...map].map(([key, value]) => ({
             key: String(key),
             value,
             mark: key === highlightKey ? ('target' as const) : undefined,
@@ -44,42 +45,44 @@ export function* traceTwoSum(nums: readonly number[], target: number): AlgoTrace
       },
     ],
   });
+  // #endhide
 
-  for (let i = 0; i < nums.length; i += 1) {
-    const need = target - nums[i]; // @need
+  for (let i = 0; i < nums.length; i++) {
+    const diff = target - nums[i]; // @need
 
     yield {
       state: view(i, { [i]: 'active' }),
       at: 'need',
-      note: `Взяли ${nums[i]}. Чтобы получить ${target}, не хватает ${need}. Видели такое?`,
+      note: `Взяли ${nums[i]}. Чтобы получить ${target}, не хватает ${diff}. Видели такое?`,
       metrics: { reads: 1 },
-      memoryPeak: seen.size,
+      memoryPeak: map.size,
     };
 
-    if (seen.has(need)) { // @hit
-      const first = seen.get(need)!;
+    if (map.has(diff)) { // @hit
       yield {
-        state: view(i, { [first]: 'target', [i]: 'target' }, need),
+        state: view(i, { [map.get(diff)!]: 'target', [i]: 'target' }, diff),
         at: 'hit',
-        note: `Да — ${need} лежит на индексе ${first}. Ответ: [${first}, ${i}].`,
+        note: `Да — ${diff} лежит на индексе ${map.get(diff)}. Ответ: [${map.get(diff)}, ${i}].`,
         metrics: { comparisons: 1 },
       };
-      return [first, i];
+      return [map.get(diff)!, i];
     }
 
     // Кладём ПОСЛЕ проверки: иначе элемент найдёт сам себя
     // и на входе [3], target 6 вернётся неверная пара.
-    seen.set(nums[i], i); // @remember
+    map.set(nums[i], i); // @remember
 
     yield {
       state: view(i, { [i]: 'visited' }),
       at: 'remember',
       note: `Нет. Запоминаем ${nums[i]} → индекс ${i} и идём дальше.`,
       metrics: { writes: 1 },
-      memoryPeak: seen.size,
+      memoryPeak: map.size,
     };
   }
 
+  // В исходном решении функция просто заканчивалась (undefined).
+  // Тип ответа — пара или null, поэтому «пары нет» — это null.
   return null;
 }
 // #endregion

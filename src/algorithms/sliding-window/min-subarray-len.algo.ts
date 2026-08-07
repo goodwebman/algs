@@ -22,8 +22,9 @@ export function* traceMinSubArrayLen(
 ): AlgoTrace<VizState, number> {
   let left = 0;
   let sum = 0;
-  let best = Infinity;
+  let minLen = Infinity;
 
+  // #hide
   const view = (right: number, marks: Record<number, MarkKind>, note: string): VizState => ({
     kind: 'array',
     data: nums,
@@ -33,10 +34,11 @@ export function* traceMinSubArrayLen(
       { name: 'right', index: right, tone: 'r' },
     ],
     marks,
-    caption: `${note} · сумма ${sum}, лучший ответ ${best === Infinity ? '—' : best}`,
+    caption: `${note} · сумма ${sum}, лучший ответ ${minLen === Infinity ? '—' : minLen}`,
   });
+  // #endhide
 
-  for (let right = 0; right < nums.length; right += 1) {
+  for (let right = 0; right < nums.length; right++) {
     sum += nums[right]; // @expand
 
     yield {
@@ -49,17 +51,14 @@ export function* traceMinSubArrayLen(
     // Именно while, а не if: после одного сжатия условие может
     // всё ещё выполняться, и окно нужно сжимать дальше.
     while (sum >= target) {
-      const length = right - left + 1;
+      minLen = Math.min(minLen, right - left + 1); // @better
 
-      if (length < best) { // @better
-        best = length;
-        yield {
-          state: view(right, { [left]: 'target', [right]: 'target' }, `новый минимум длины ${best}`),
-          at: 'better',
-          note: `Условие выполнено, длина ${length} — лучше прежнего. Пробуем сжать ещё.`,
-          metrics: { comparisons: 1 },
-        };
-      }
+      yield {
+        state: view(right, { [left]: 'target', [right]: 'target' }, `длина ${right - left + 1}`),
+        at: 'better',
+        note: `Условие выполнено, длина ${right - left + 1}. Лучший ответ ${minLen} — пробуем сжать ещё.`,
+        metrics: { comparisons: 1 },
+      };
 
       sum -= nums[left]; // @shrink
       yield {
@@ -68,11 +67,11 @@ export function* traceMinSubArrayLen(
         note: `Выбрасываем ${nums[left]} слева, сумма ${sum}.`,
         metrics: { reads: 1 },
       };
-      left += 1;
+      left++;
     }
   }
 
-  return best === Infinity ? 0 : best; // @result
+  return minLen === Infinity ? 0 : minLen; // @result
 }
 // #endregion
 

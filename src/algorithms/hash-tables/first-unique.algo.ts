@@ -18,6 +18,7 @@ export function* traceFirstUnique(input: string): AlgoTrace<VizState, number> {
   const chars = [...input];
   const counts = new Map<string, number>();
 
+  // #hide
   const view = (index: number, phase: string, activeKey?: string): VizState => ({
     kind: 'composite',
     panels: [
@@ -43,6 +44,7 @@ export function* traceFirstUnique(input: string): AlgoTrace<VizState, number> {
       },
     ],
   });
+  // #endhide
 
   for (let i = 0; i < chars.length; i += 1) {
     counts.set(chars[i], (counts.get(chars[i]) ?? 0) + 1); // @count

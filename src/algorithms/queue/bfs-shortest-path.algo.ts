@@ -13,11 +13,24 @@ type Graph = Readonly<Record<string, readonly string[]>>;
  * весов рёбер, потому что идёт «волнами»: сначала все вершины на расстоянии 1,
  * потом 2, и так далее. Как только дошли до цели — это расстояние минимально.
  *
- * Две детали, без которых BFS ломается:
- *   1. очередь без shift() — иначе O(n²) из-за dequeue;
- *   2. parent-карта для восстановления пути — без неё узнаем расстояние,
- *      но не сам маршрут.
+ * Ключевая деталь — parent-карта: без неё мы узнаем расстояние, но не сам
+ * маршрут. Путь восстанавливается с конца, от цели к старту.
+ *
+ * Очередь здесь на shift() — читается проще всего. Цена этого разобрана
+ * отдельно в «Цене shift»: на больших графах нужен head-указатель.
  */
+const buildPath = (parent: Record<string, string | null>, end: string): string[] => {
+  const path: string[] = [];
+  let cur: string | null = end;
+
+  while (cur !== null) {
+    path.push(cur);
+    cur = parent[cur];
+  }
+
+  return path.reverse();
+};
+
 export function* traceBfsPath(graph: Graph, start: string, end: string): AlgoTrace<VizState, string[] | null> {
   if (start === end) {
     yield {
@@ -32,11 +45,14 @@ export function* traceBfsPath(graph: Graph, start: string, end: string): AlgoTra
     return [start];
   }
 
-  const visited = new Set<string>([start]);
-  const parent = new Map<string, string | null>([[start, null]]);
-  const queueItems: string[] = [start];
-  let head = 0;
+  const visited = new Set<string>();
+  const queue: string[] = [start];
+  const parent: Record<string, string | null> = {};
 
+  visited.add(start);
+  parent[start] = null;
+
+  // #hide
   const view = (note: string): VizState => ({
     kind: 'composite',
     panels: [
@@ -46,64 +62,56 @@ export function* traceBfsPath(graph: Graph, start: string, end: string): AlgoTra
           kind: 'graph',
           nodes: Object.keys(graph).map((id) => ({ id, mark: visited.has(id) ? ('done' as const) : undefined })),
           edges: Object.entries(graph).flatMap(([from, tos]) =>
-            tos.map((to) => ({ from, to, mark: parent.has(to) ? ('done' as const) : undefined })),
+            tos.map((to) => ({ from, to, mark: to in parent ? ('done' as const) : undefined })),
           ),
           directed: false,
         },
       },
       {
-        title: 'очередь (head-указатель, без shift)',
-        view: { kind: 'queue', items: queueItems, head },
+        title: 'очередь',
+        view: { kind: 'queue', items: queue, head: 0 },
       },
     ],
     caption: note,
   });
+  // #endhide
 
-  while (head < queueItems.length) {
-    const node = queueItems[head]; // @dequeue
+  while (queue.length) {
+    const node = queue.shift()!; // @dequeue
 
     yield {
       state: view(`обрабатываем «${node}»`),
       at: 'dequeue',
-      note: `Достаём «${node}» из головы очереди (head двигается, элементы не сдвигаются).`,
+      note: `Достаём «${node}» из головы очереди.`,
       metrics: { reads: 1 },
     };
 
     for (const neighbor of graph[node]) { // @neighbors
-      if (visited.has(neighbor)) continue;
-
-      visited.add(neighbor);
-      parent.set(neighbor, node);
-      queueItems.push(neighbor); // @enqueue
-
-      yield {
-        state: view(`нашли «${neighbor}», расстояние на 1 больше`),
-        at: 'enqueue',
-        note: `«${neighbor}» не посещён — добавляем в очередь, запоминаем предка «${node}».`,
-        metrics: { writes: 1 },
-        memoryPeak: queueItems.length - head,
-      };
-
-      if (neighbor === end) {
-        // Восстанавливаем путь от конца к началу через parent-карту
-        const path: string[] = [];
-        let cur: string | null = end;
-        while (cur !== null) {
-          path.push(cur);
-          cur = parent.get(cur) ?? null;
-        }
-        path.reverse();
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        parent[neighbor] = node;
+        queue.push(neighbor); // @enqueue
 
         yield {
-          state: view(`цель «${end}» достигнута за ${path.length - 1} шагов`),
-          note: `Дошли до «${end}». Восстанавливаем путь по карте предков: ${path.join(' → ')}.`,
+          state: view(`нашли «${neighbor}», расстояние на 1 больше`),
+          at: 'enqueue',
+          note: `«${neighbor}» не посещён — добавляем в очередь, запоминаем предка «${node}».`,
+          metrics: { writes: 1 },
+          memoryPeak: queue.length,
         };
 
-        return path; // @found
+        if (neighbor === end) { // @found
+          const path = buildPath(parent, end);
+
+          yield {
+            state: view(`цель «${end}» достигнута за ${path.length - 1} шагов`),
+            note: `Дошли до «${end}». Восстанавливаем путь по карте предков: ${path.join(' → ')}.`,
+          };
+
+          return path;
+        }
       }
     }
-
-    head += 1;
   }
 
   yield {

@@ -10,16 +10,17 @@ import type { MarkKind, VizState } from '@/viz/types';
  * Инсайт: после возведения в квадрат максимум оказывается на одном из КРАЁВ
  * (самое отрицательное или самое положительное число). Значит результат
  * можно заполнять С КОНЦА, каждый раз забирая больший из двух краёв.
- *
- * Именно с конца, а не с начала: заполнение с начала потребовало бы
- * `unshift`, а он сдвигает весь массив и превращает O(n) в O(n²).
  */
-export function* traceSortedSquares(nums: readonly number[]): AlgoTrace<VizState, number[]> {
-  const result = new Array<number>(nums.length).fill(0);
+export function* traceSortedSquares(array: readonly number[]): AlgoTrace<VizState, number[]> {
+  const results = new Array<number>(array.length).fill(0);
   let left = 0;
-  let right = nums.length - 1;
-  let write = nums.length - 1; // @write
+  let right = array.length - 1;
+  // Правка против исходного решения: там результат собирался через
+  // results.unshift(), а unshift сдвигает весь массив — O(n) на шаг,
+  // то есть O(n²) на всё. Пишем по индексу с конца: порядок тот же.
+  let write = array.length - 1; // @write
 
+  // #hide
   const view = (marks: Record<number, MarkKind>, note: string): VizState => ({
     kind: 'composite',
     panels: [
@@ -27,7 +28,7 @@ export function* traceSortedSquares(nums: readonly number[]): AlgoTrace<VizState
         title: 'вход',
         view: {
           kind: 'array',
-          data: nums,
+          data: array,
           pointers: [
             { name: 'left', index: left, tone: 'l' },
             { name: 'right', index: right, tone: 'r' },
@@ -39,58 +40,59 @@ export function* traceSortedSquares(nums: readonly number[]): AlgoTrace<VizState
         title: 'результат (заполняется справа налево)',
         view: {
           kind: 'array',
-          data: result,
+          data: results,
           pointers: [{ name: 'write', index: write, tone: 'aux', outOfRange: write < 0 }],
           marks: Object.fromEntries(
-            result.map((_, i) => [i, i > write ? ('done' as const) : ('excluded' as const)]),
+            results.map((_, i) => [i, i > write ? ('done' as const) : ('excluded' as const)]),
           ),
         },
       },
     ],
     caption: note,
   });
+  // #endhide
 
   while (left <= right) {
-    const leftSquare = nums[left] * nums[left];
-    const rightSquare = nums[right] * nums[right]; // @squares
+    const leftSquare = array[left] ** 2;
+    const rightSquare = array[right] ** 2; // @squares
 
     yield {
       state: view({ [left]: 'compare', [right]: 'compare' }, `${leftSquare} против ${rightSquare}`),
       at: 'squares',
-      note: `Сравниваем квадраты краёв: ${nums[left]}² = ${leftSquare}, ${nums[right]}² = ${rightSquare}.`,
+      note: `Сравниваем квадраты краёв: ${array[left]}² = ${leftSquare}, ${array[right]}² = ${rightSquare}.`,
       metrics: { comparisons: 1, reads: 2 },
     };
 
     if (leftSquare > rightSquare) {
-      result[write] = leftSquare; // @takeLeft
+      results[write] = leftSquare; // @takeLeft
       yield {
         state: view({ [left]: 'target' }, `${leftSquare} уходит в позицию ${write}`),
         at: 'takeLeft',
         note: `Левый край по модулю больше — его квадрат и есть максимум оставшихся. Кладём в ${write}.`,
         metrics: { writes: 1 },
       };
-      left += 1;
+      left++;
     } else {
-      result[write] = rightSquare; // @takeRight
+      results[write] = rightSquare; // @takeRight
       yield {
         state: view({ [right]: 'target' }, `${rightSquare} уходит в позицию ${write}`),
         at: 'takeRight',
         note: `Правый край по модулю не меньше — его квадрат максимален. Кладём в ${write}.`,
         metrics: { writes: 1 },
       };
-      right -= 1;
+      right--;
     }
 
-    write -= 1;
+    write--;
   }
 
   yield {
     state: view({}, 'готово'),
     note: 'Все позиции заполнены. Результат отсортирован по построению.',
-    memoryPeak: nums.length,
+    memoryPeak: array.length,
   };
 
-  return result;
+  return results;
 }
 // #endregion
 

@@ -39,9 +39,9 @@ const ArticlePage = () => {
         </header>
       )}
 
-      {/* Текст держим в 72ch, а интерактив пусть занимает всю ширину:
-          длинные строки читать тяжело, а массив на 20 ячеек в 72ch не влезает. */}
-      <div className="[&>*]:mx-auto [&>*]:max-w-[72ch] [&>figure]:max-w-full [&>section]:max-w-full">
+      {/* Раскладка в mdx-body (tokens.css): текст в колонке фиксированной
+          ширины с общим левым краем, интерактив выходит на всю ширину. */}
+      <div className="mdx-body">
         <Content />
       </div>
     </article>

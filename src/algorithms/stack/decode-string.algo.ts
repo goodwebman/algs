@@ -11,15 +11,19 @@ import type { VizState } from '@/viz/types';
  * рекурсия». Стек здесь удобнее: он явно хранит «отложенный контекст»
  * каждого незакрытого уровня.
  *
- * На стек кладём пару (накопленная строка снаружи, множитель). При «]»
- * достаём её и склеиваем: снаружи + внутренность × множитель.
+ * На стек кладём два значения: накопленную строку снаружи и множитель.
+ * При «]» снимаем их в обратном порядке и склеиваем: снаружи +
+ * внутренность × множитель.
  */
 export function* traceDecodeString(input: string): AlgoTrace<VizState, string> {
   const chars = [...input];
-  const stack: { text: string; count: number }[] = [];
-  let current = '';
-  let count = 0;
+  // На стек уходят два значения подряд: строка снаружи и её множитель.
+  // Отсюда смешанный тип и приведения при pop — цена такой формы стека.
+  const stack: (string | number)[] = [];
+  let currentStr = '';
+  let currentNum = 0;
 
+  // #hide
   const view = (index: number, note: string): VizState => ({
     kind: 'composite',
     panels: [
@@ -37,57 +41,63 @@ export function* traceDecodeString(input: string): AlgoTrace<VizState, string> {
       },
       {
         title: 'стек отложенных уровней',
-        view: { kind: 'stack', items: stack.map((f) => `"${f.text}" × ${f.count}`) },
+        view: { kind: 'stack', items: stack.map((item) => (typeof item === 'string' ? `"${item}"` : `× ${item}`)) },
       },
     ],
-    caption: `${note} · собрано: "${current}"${count ? `, множитель ${count}` : ''}`,
+    caption: `${note} · собрано: "${currentStr}"${currentNum ? `, множитель ${currentNum}` : ''}`,
   });
+  // #endhide
 
-  for (let i = 0; i < chars.length; i += 1) {
+  for (let i = 0; i < chars.length; i++) {
     const char = chars[i];
 
     if (char >= '0' && char <= '9') {
-      // Множитель может быть многозначным: 12[a] — это count = 12,
+      // Множитель может быть многозначным: 12[a] — это currentNum = 12,
       // а не два отдельных числа.
-      count = count * 10 + Number(char); // @digit
+      currentNum = currentNum * 10 + Number(char); // @digit
 
       yield {
         state: view(i, `цифра «${char}»`),
         at: 'digit',
-        note: `Накапливаем множитель: он стал ${count}. Число может быть многозначным.`,
+        note: `Накапливаем множитель: он стал ${currentNum}. Число может быть многозначным.`,
       };
       continue;
     }
 
     if (char === '[') {
-      stack.push({ text: current, count }); // @open
-      current = '';
-      count = 0;
+      stack.push(currentStr); // @open
+      stack.push(currentNum);
+
+      currentStr = '';
+      currentNum = 0;
 
       yield {
         state: view(i, 'вход в блок'),
         at: 'open',
         note: 'Открылся блок: откладываем внешний контекст на стек и начинаем собирать новый.',
-        metrics: { writes: 1 },
+        metrics: { writes: 2 },
         memoryPeak: stack.length,
       };
       continue;
     }
 
     if (char === ']') {
-      const frame = stack.pop()!;
-      current = frame.text + current.repeat(frame.count); // @close
+      // Снимаем в обратном порядке: сверху множитель, под ним внешняя строка.
+      const num = stack.pop() as number;
+      const prevStr = stack.pop() as string;
+
+      currentStr = prevStr + currentStr.repeat(num); // @close
 
       yield {
         state: view(i, 'блок закрыт'),
         at: 'close',
-        note: `Блок закрылся: повторили внутренность ${frame.count} раз и приклеили к внешнему контексту.`,
-        metrics: { reads: 1, writes: 1 },
+        note: `Блок закрылся: повторили внутренность ${num} раз и приклеили к внешнему контексту.`,
+        metrics: { reads: 2, writes: 1 },
       };
       continue;
     }
 
-    current += char; // @letter
+    currentStr += char; // @letter
 
     yield {
       state: view(i, `буква «${char}»`),
@@ -96,7 +106,7 @@ export function* traceDecodeString(input: string): AlgoTrace<VizState, string> {
     };
   }
 
-  return current;
+  return currentStr;
 }
 // #endregion
 

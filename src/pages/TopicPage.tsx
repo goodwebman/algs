@@ -41,7 +41,7 @@ const TopicPage = () => {
       </header>
 
       {Content && (
-        <div className="max-w-[72ch]">
+        <div className="mdx-body">
           <Content />
         </div>
       )}

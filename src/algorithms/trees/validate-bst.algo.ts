@@ -1,6 +1,6 @@
 import raw from './validate-bst.algo.ts?raw';
 import { defineAlgo } from '@/core/algo';
-import { runTrace, type AlgoTrace, type Step } from '@/core/trace';
+import { runTrace, type AlgoTrace } from '@/core/trace';
 import type { TreeNodeView, VizState } from '@/viz/types';
 
 // #region show
@@ -19,8 +19,12 @@ import type { TreeNodeView, VizState } from '@/viz/types';
  *          / \
  *         3   7      ← 3 меньше 5, но лежит в правом поддереве!
  *
- * Правильный подход: спускаясь вниз, передавать ДИАПАЗОН допустимых значений.
- * Уходя влево — сужаем сверху, вправо — снизу.
+ * Приём: in-order обход (левое → узел → правое) выдаёт значения BST строго
+ * по возрастанию. Значит достаточно идти обходом и сравнивать каждый узел
+ * с ПРЕДЫДУЩИМ — первое же невозрастание означает, что это не BST.
+ *
+ * Обход итеративный, на явном стеке: рекурсия на вырожденном дереве
+ * (список из миллиона узлов) переполнит стек вызовов.
  */
 interface BinaryNode {
   id: string;
@@ -30,6 +34,7 @@ interface BinaryNode {
 }
 
 export function* traceValidateBst(root: BinaryNode | undefined): AlgoTrace<VizState, boolean> {
+  // #hide
   const checked = new Set<string>();
   let failedId: string | null = null;
 
@@ -52,58 +57,78 @@ export function* traceValidateBst(root: BinaryNode | undefined): AlgoTrace<VizSt
       children,
     };
   };
+  // #endhide
 
+  // #hide
   const view = (note: string, activeId?: string): VizState => ({
     kind: 'tree',
     root: decorate(root, activeId),
     caption: note,
   });
+  // #endhide
 
-  const fmt = (bound: number) => (Number.isFinite(bound) ? String(bound) : bound > 0 ? '+∞' : '−∞');
+  // #hide
+  const fmt = (bound: number) => (Number.isFinite(bound) ? String(bound) : '−∞');
+  // #endhide
 
-  function* check(
-    node: BinaryNode | undefined,
-    min: number, // @range
-    max: number,
-  ): Generator<Step<VizState>, boolean, void> {
-    if (!node) return true; // @base
+  const stack: BinaryNode[] = [];
+  let prev = -Infinity;
+  let current = root;
 
-    yield {
-      state: view(`проверяем ${node.value}: допустимо (${fmt(min)}, ${fmt(max)})`, node.id),
-      at: 'range',
-      note: `Узел ${node.value} обязан лежать строго между ${fmt(min)} и ${fmt(max)}.`,
-      metrics: { comparisons: 1 },
-    };
+  while (stack.length || current) {
+    // Спускаемся влево до упора: самый левый узел — начало in-order обхода.
+    while (current) { // @descend
+      stack.push(current);
 
-    // Строгие неравенства: дубликаты в классическом BST не допускаются.
-    if (node.value <= min || node.value >= max) { // @violation
-      failedId = node.id;
       yield {
-        state: view(`${node.value} вне диапазона (${fmt(min)}, ${fmt(max)}) — не BST`, node.id),
+        state: view(`уходим влево от ${current.value}`, current.id),
+        at: 'descend',
+        note: `Кладём ${current.value} на стек и идём в левого ребёнка — сначала обходится всё левое поддерево.`,
+        metrics: { writes: 1 },
+        memoryPeak: stack.length,
+      };
+
+      current = current.left;
+    }
+
+    current = stack.pop()!; // @pop
+
+    // Строгое <=: дубликаты в классическом BST не допускаются.
+    if (current.value <= prev) { // @violation
+      // #hide
+      failedId = current.id;
+      // #endhide
+
+      yield {
+        state: view(`${current.value} ≤ ${fmt(prev)} — обход не возрастает`, current.id),
         at: 'violation',
-        note: `${node.value} нарушает границы — дерево не является BST.`,
+        note: `In-order выдал ${current.value} после ${fmt(prev)} — последовательность не возрастает, это не BST.`,
+        metrics: { comparisons: 1 },
       };
       return false;
     }
 
-    checked.add(node.id);
+    // #hide
+    checked.add(current.id);
+    // #endhide
 
-    // Влево: верхняя граница становится значением узла.
-    if (!(yield* check(node.left, min, node.value))) return false; // @left
-    // Вправо: нижняя граница становится значением узла.
-    if (!(yield* check(node.right, node.value, max))) return false; // @right
+    yield {
+      state: view(`${current.value} больше предыдущего — идём вправо`, current.id),
+      at: 'prev',
+      note: `${current.value} > ${fmt(prev)} — порядок не нарушен. Запоминаем значение как предыдущее и переходим в правое поддерево.`,
+      metrics: { comparisons: 1 },
+    };
 
-    return true;
+    prev = current.value; // @prev
+    current = current.right;
   }
 
-  const ok = yield* check(root, -Infinity, Infinity);
-
   yield {
-    state: view(ok ? 'все узлы в допустимых границах — это BST' : 'найдено нарушение'),
-    note: ok ? 'Каждый узел уложился в свой диапазон — дерево поиска корректно.' : 'Дерево не является BST.',
+    state: view('обход дошёл до конца, значения строго возрастали'),
+    note: 'In-order выдал строго возрастающую последовательность — дерево поиска корректно.',
   };
 
-  return ok;
+  return true;
 }
 // #endregion
 
@@ -129,15 +154,15 @@ export default defineAlgo({
     slug: 'validate-bst',
     title: 'Проверка дерева поиска',
     topic: 'trees',
-    summary: 'Почему локальная проверка «левый меньше» неверна и как передавать диапазон вниз.',
+    summary: 'Почему локальная проверка «левый меньше» неверна и как её заменяет in-order обход.',
     complexity: { time: 'O(n)', space: 'O(h)', growth: 'O(n)' },
     difficulty: 'medium',
     leetcode: { id: 98, title: 'validate-binary-search-tree' },
-    tags: ['деревья', 'BST', 'диапазон', 'рекурсия'],
+    tags: ['деревья', 'BST', 'in-order', 'явный стек'],
   },
   raw,
   presets: [
-    { label: 'корректный BST', args: [VALID] as const, hint: 'Каждый узел укладывается в свой диапазон.' },
+    { label: 'корректный BST', args: [VALID] as const, hint: 'In-order выдаёт 1, 2, 3, 4, 5, 6, 7 — строго по возрастанию.' },
     {
       label: 'ловушка: 3 справа от 5',
       args: [SNEAKY] as const,

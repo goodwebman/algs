@@ -14,12 +14,13 @@ import type { VizState } from '@/viz/types';
  * Счётчиком можно обойтись, если скобка одного вида. Как только видов
  * несколько, счётчик не отличит «([)]» от «([])» — а стек отличает.
  */
-const PAIRS: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
+const pairs: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
 
 export function* traceValidParentheses(input: string): AlgoTrace<VizState, boolean> {
   const chars = [...input];
   const stack: string[] = [];
 
+  // #hide
   const view = (index: number, note: string, topMark?: 'active' | 'swap' | 'done'): VizState => ({
     kind: 'composite',
     panels: [
@@ -46,49 +47,44 @@ export function* traceValidParentheses(input: string): AlgoTrace<VizState, boole
     ],
     caption: note,
   });
+  // #endhide
 
-  for (let i = 0; i < chars.length; i += 1) {
-    const char = chars[i];
+  for (let i = 0; i < chars.length; i++) {
+    const symb = chars[i];
 
-    if (!PAIRS[char]) {
-      stack.push(char); // @push
+    if (!pairs[symb]) {
+      stack.push(symb); // @push
 
       yield {
-        state: view(i, `открыли «${char}»`, 'active'),
+        state: view(i, `открыли «${symb}»`, 'active'),
         at: 'push',
-        note: `«${char}» — открывающая. Кладём на стек, ждём парную.`,
+        note: `«${symb}» — открывающая. Кладём на стек, ждём парную.`,
         metrics: { writes: 1 },
         memoryPeak: stack.length,
       };
       continue;
     }
 
-    // Стек пуст — закрывать нечего. Это «)» в начале строки.
-    if (stack.length === 0) { // @empty
-      yield {
-        state: view(i, `«${char}» нечего закрывать`),
-        at: 'empty',
-        note: `«${char}» пришла, а стек пуст — закрывать нечего.`,
-      };
-      return false;
-    }
+    // На пустом стеке pop() вернёт undefined — отдельная проверка
+    // stack.length === 0 не нужна, сравнение всё равно провалится.
+    const top = stack.pop(); // @pop
 
-    const top = stack.pop()!; // @pop
-
-    if (top !== PAIRS[char]) { // @mismatch
+    if (top !== pairs[symb]) { // @mismatch
       yield {
-        state: view(i, `«${top}» ≠ пара для «${char}»`, 'swap'),
+        state: view(i, top ? `«${top}» ≠ пара для «${symb}»` : `«${symb}» нечего закрывать`, 'swap'),
         at: 'mismatch',
-        note: `Последняя незакрытая — «${top}», а закрывают «${char}». Не совпало.`,
+        note: top
+          ? `Последняя незакрытая — «${top}», а закрывают «${symb}». Не совпало.`
+          : `«${symb}» пришла, а стек пуст — закрывать нечего.`,
         metrics: { comparisons: 1 },
       };
       return false;
     }
 
     yield {
-      state: view(i, `«${top}» закрыта «${char}»`, 'done'),
+      state: view(i, `«${top}» закрыта «${symb}»`, 'done'),
       at: 'pop',
-      note: `«${char}» закрывает «${top}» — снимаем со стека.`,
+      note: `«${symb}» закрывает «${top}» — снимаем со стека.`,
       metrics: { comparisons: 1, reads: 1 },
     };
   }

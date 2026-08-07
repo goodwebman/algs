@@ -27,8 +27,11 @@ export function* traceCoinChangeDp(
   const dp = new Array<number>(amount + 1).fill(IMPOSSIBLE);
   dp[0] = 0; // @base
 
+  // #hide
   const cell = (value: number) => (value === IMPOSSIBLE ? '∞' : value);
+  // #endhide
 
+  // #hide
   const view = (marks: Record<string, MarkKind>, note: string): VizState => ({
     kind: 'matrix',
     grid: [dp.map(cell)],
@@ -37,6 +40,7 @@ export function* traceCoinChangeDp(
     marks,
     caption: note,
   });
+  // #endhide
 
   yield {
     state: view({ '0,0': 'done' }, 'база: dp[0] = 0'),

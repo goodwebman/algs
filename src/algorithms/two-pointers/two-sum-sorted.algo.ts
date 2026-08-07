@@ -21,6 +21,9 @@ export function* traceTwoSumSorted(
   let left = 0;
   let right = nums.length - 1;
 
+  // Правка против исходного решения: там условие было left <= right, и на
+  // входе [4] с target 8 элемент складывался сам с собой — ложное «нашли».
+  // #hide
   const view = (marks: Record<number, 'compare' | 'target' | 'excluded'>, note: string) =>
     ({
       kind: 'array' as const,
@@ -32,6 +35,7 @@ export function* traceTwoSumSorted(
       marks,
       caption: note,
     }) satisfies VizState;
+  // #endhide
 
   while (left < right) {
     const sum = nums[left] + nums[right]; // @sum

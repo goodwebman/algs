@@ -14,7 +14,7 @@
 
 ```js
 while (sum >= target) {
-  best = Math.min(best, right - left + 1);
+  minLen = Math.min(minLen, right - left + 1);
   sum -= nums[left];
   left += 1;
 }
@@ -54,3 +54,7 @@ while (sum >= target) {
 ## Решай сам
 
 <Task slug="min-subarray-len" />
+
+## Как это было решено изначально
+
+<OriginalSource file="sliding-window/minSubArrayLen.js" />

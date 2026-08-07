@@ -16,12 +16,12 @@ import type { VizState } from '@/viz/types';
  * `counts.size` навсегда останется завышенным и окно перестанет сжиматься.
  */
 export function* traceLongestKDistinct(input: string, k: number): AlgoTrace<VizState, number> {
-  const chars = [...input];
-  const counts = new Map<string, number>();
+  const str = [...input];
+  const freq = new Map<string, number>();
   let left = 0;
-  let best = 0;
-  let bestFrom = 0;
+  let ans = 0;
 
+  // #hide
   const view = (right: number, note: string): VizState => ({
     kind: 'composite',
     panels: [
@@ -29,73 +29,67 @@ export function* traceLongestKDistinct(input: string, k: number): AlgoTrace<VizS
         title: 'строка',
         view: {
           kind: 'array',
-          data: chars,
+          data: str,
           window: right >= left ? { from: left, to: right } : null,
           pointers: [
             { name: 'left', index: left, tone: 'l' },
             { name: 'right', index: right, tone: 'r' },
           ],
-          marks: Object.fromEntries(
-            chars.map((_, i) => [i, i >= bestFrom && i < bestFrom + best ? ('done' as const) : undefined]),
-          ),
         },
       },
       {
-        title: `частоты в окне · различных: ${counts.size} из ${k}`,
+        title: `частоты в окне · различных: ${freq.size} из ${k}`,
         view: {
           kind: 'hashmap',
-          entries: [...counts].map(([key, value]) => ({ key, value })),
+          entries: [...freq].map(([key, value]) => ({ key, value })),
         },
       },
     ],
-    caption: `${note} · лучший ответ ${best}`,
+    caption: `${note} · лучший ответ ${ans}`,
   });
+  // #endhide
 
-  for (let right = 0; right < chars.length; right += 1) {
-    const char = chars[right];
-    counts.set(char, (counts.get(char) ?? 0) + 1); // @expand
+  for (let right = 0; right < str.length; right++) {
+    freq.set(str[right], (freq.get(str[right]) ?? 0) + 1); // @expand
 
     yield {
-      state: view(right, `вошёл «${char}»`),
+      state: view(right, `вошёл «${str[right]}»`),
       at: 'expand',
-      note: `Добавили «${char}». Различных символов в окне: ${counts.size}.`,
+      note: `Добавили «${str[right]}». Различных символов в окне: ${freq.size}.`,
       metrics: { reads: 1, writes: 1 },
-      memoryPeak: counts.size,
+      memoryPeak: freq.size,
     };
 
-    while (counts.size > k) { // @shrink
-      const leaving = chars[left];
-      const next = counts.get(leaving)! - 1;
+    while (freq.size > k) { // @shrink
+      freq.set(str[left], freq.get(str[left])! - 1);
 
-      // Удаляем ключ на нуле, а не оставляем со значением 0 —
-      // иначе counts.size врёт и цикл не завершится.
-      if (next === 0) counts.delete(leaving); // @delete
-      else counts.set(leaving, next);
-
-      left += 1;
+      // Ключ на нуле именно удаляется, а не остаётся со значением 0 —
+      // иначе freq.size врёт и цикл не завершится.
+      if (freq.get(str[left]) === 0) { // @delete
+        freq.delete(str[left]);
+      }
 
       yield {
-        state: view(right, `вышел «${leaving}»`),
+        state: view(right, `вышел «${str[left]}»`),
         at: 'shrink',
-        note: `Различных стало больше ${k} — выбрасываем «${leaving}» слева.`,
+        note: `Различных стало больше ${k} — выбрасываем «${str[left]}» слева.`,
         metrics: { writes: 1 },
       };
+
+      left++;
     }
 
-    if (right - left + 1 > best) { // @better
-      best = right - left + 1;
-      bestFrom = left;
+    ans = Math.max(ans, right - left + 1); // @better
 
-      yield {
-        state: view(right, `новый максимум ${best}`),
-        at: 'better',
-        note: `Окно длиной ${best} — лучшее из встреченных.`,
-        metrics: { comparisons: 1 },
-      };
-    }
+    yield {
+      state: view(right, `длина окна ${right - left + 1}`),
+      at: 'better',
+      note: `Окно длиной ${right - left + 1}, лучший ответ ${ans}.`,
+      metrics: { comparisons: 1 },
+    };
   }
 
-  return best;
+  return ans;
 }
 // #endregion
 

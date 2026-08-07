@@ -36,6 +36,7 @@ export function* traceTopologicalSort(graph: DiGraph): AlgoTrace<VizState, strin
   const queue = nodes.filter((id) => indegree.get(id) === 0);
   let head = 0;
 
+  // #hide
   const view = (note: string, activeId?: string): VizState => ({
     kind: 'composite',
     panels: [
@@ -69,6 +70,7 @@ export function* traceTopologicalSort(graph: DiGraph): AlgoTrace<VizState, strin
     ],
     caption: `${note} · порядок: [${order.join(', ')}]`,
   });
+  // #endhide
 
   yield {
     state: view('посчитали входящие степени'),

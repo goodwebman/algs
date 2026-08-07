@@ -14,62 +14,60 @@ import type { MarkKind, VizState } from '@/viz/types';
  * Отсюда O(log n): чтобы от n дойти до 1, отрезок надо поделить пополам
  * log₂(n) раз. Для миллиона элементов это 20 шагов.
  */
-export function* traceBinarySearch(nums: readonly number[], target: number): AlgoTrace<VizState, number> {
+export function* traceBinarySearch(arr: readonly number[], target: number): AlgoTrace<VizState, number> {
   let left = 0;
-  let right = nums.length - 1;
+  let right = arr.length - 1;
 
+  // #hide
   const view = (mid: number | null, marks: Record<number, MarkKind>, note: string): VizState => ({
     kind: 'array',
-    data: nums,
+    data: arr,
     pointers: [
-      { name: 'left', index: left, tone: 'l', outOfRange: left >= nums.length },
+      { name: 'left', index: left, tone: 'l', outOfRange: left >= arr.length },
       ...(mid === null ? [] : [{ name: 'mid', index: mid, tone: 'scan' as const }]),
       { name: 'right', index: right, tone: 'r', outOfRange: right < 0 },
     ],
     marks: {
       ...Object.fromEntries(
-        nums.map((_, i) => [i, i < left || i > right ? ('excluded' as const) : undefined]),
+        arr.map((_, i) => [i, i < left || i > right ? ('excluded' as const) : undefined]),
       ),
       ...marks,
     },
-    caption: `${note} · осталось ${Math.max(0, right - left + 1)} из ${nums.length}`,
+    caption: `${note} · осталось ${Math.max(0, right - left + 1)} из ${arr.length}`,
   });
+  // #endhide
 
   while (left <= right) {
-    // (right - left) / 2 вместо (left + right) / 2 — в языках с
-    // фиксированной разрядностью вторая форма переполняется. В JS
-    // переполнения нет, но привычка полезная, а читается не хуже.
-    const mid = left + Math.floor((right - left) / 2); // @mid
+    const mid = Math.floor((left + right) / 2); // @mid
+    const guess = arr[mid];
 
     yield {
-      state: view(mid, { [mid]: 'compare' }, `середина: ${nums[mid]}`),
+      state: view(mid, { [mid]: 'compare' }, `середина: ${guess}`),
       at: 'mid',
-      note: `Середина отрезка — индекс ${mid}, значение ${nums[mid]}. Ищем ${target}.`,
+      note: `Середина отрезка — индекс ${mid}, значение ${guess}. Ищем ${target}.`,
       metrics: { comparisons: 1, reads: 1 },
     };
 
-    if (nums[mid] === target) { // @found
+    if (guess === target) { // @found
       yield {
         state: view(mid, { [mid]: 'target' }, 'нашли'),
         at: 'found',
-        note: `${nums[mid]} — это и есть ${target}. Индекс ${mid}.`,
+        note: `${guess} — это и есть ${target}. Индекс ${mid}.`,
       };
       return mid;
-    }
-
-    if (nums[mid] < target) {
+    } else if (guess < target) {
       left = mid + 1; // @goRight
       yield {
         state: view(null, {}, 'ушли вправо'),
         at: 'goRight',
-        note: `${nums[mid]} меньше ${target}: вся левая половина, включая середину, отпадает.`,
+        note: `${guess} меньше ${target}: вся левая половина, включая середину, отпадает.`,
       };
     } else {
       right = mid - 1; // @goLeft
       yield {
         state: view(null, {}, 'ушли влево'),
         at: 'goLeft',
-        note: `${nums[mid]} больше ${target}: вся правая половина, включая середину, отпадает.`,
+        note: `${guess} больше ${target}: вся правая половина, включая середину, отпадает.`,
       };
     }
   }
@@ -79,12 +77,14 @@ export function* traceBinarySearch(nums: readonly number[], target: number): Alg
     note: `left обогнал right — отрезок пуст, значит ${target} в массиве нет.`,
   };
 
+  // В исходном решении здесь был undefined. Тип ответа — number,
+  // поэтому «не нашли» кодируется как -1, по соглашению LeetCode.
   return -1;
 }
 // #endregion
 
-export const binarySearch = (nums: readonly number[], target: number): number =>
-  runTrace(traceBinarySearch(nums, target));
+export const binarySearch = (arr: readonly number[], target: number): number =>
+  runTrace(traceBinarySearch(arr, target));
 
 export default defineAlgo({
   meta: {

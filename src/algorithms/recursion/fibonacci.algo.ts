@@ -21,39 +21,52 @@ const freeze = (node: MutableNode): TreeNodeView => ({
 
 // #region show
 /**
- * Числа Фибоначчи: наивная рекурсия против мемоизации.
+ * Числа Фибоначчи наивной рекурсией — и почему она взрывается.
  *
- * fib(n) = fib(n-1) + fib(n-2) звучит элегантно, но наивная реализация
- * экспоненциальна: fib(3) вызывается по три раза, fib(40) — около миллиарда
- * вызовов. Перекрытия в дереве вызовов и есть источник взрыва.
+ * fib(n) = fib(n-1) + fib(n-2) звучит элегантно, но стоит экспоненциально:
+ * fib(3) вычисляется по три раза, fib(40) — около миллиарда вызовов.
+ * Перекрытия в дереве вызовов и есть источник взрыва — на визуализации
+ * одинаковые поддеревья видно буквально.
  *
- * Мемоизация запоминает уже посчитанные значения. Тогда fib(k) считается
- * ровно один раз, и дерево из экспоненциального превращается в линейное.
- * Тот же приём переводит экспоненциальное DP в полиномиальное.
+ * Лечится мемоизацией: запомнить уже посчитанное, и дерево из
+ * экспоненциального становится линейным. Разбор — в статье.
  */
 export function* traceFibonacci(n: number): AlgoTrace<VizState, number> {
-  const memo = new Map<number, number>();
+  // #hide
   let counter = 0;
   const treeNodes = new Map<string, MutableNode>();
-  const parents = new Map<string, string | null>();
+  const callStack: string[] = [];
   let rootId: string | null = null;
 
-  // Полный стек от корня до текущего кадра: поднимаемся по parent-цепочке.
-  const stackToRoot = (id: string): CallStackFrameView[] => {
-    const path: CallStackFrameView[] = [];
-    let cur: string | null = id;
-    while (cur) {
-      const node = treeNodes.get(cur);
-      if (node) path.push({ id: cur, label: node.label, mark: node.mark });
-      cur = parents.get(cur) ?? null;
-    }
-    return path.reverse();
+  // Ведём дерево вызовов для картинки: enter вешает узел на текущего
+  // родителя, finish помечает его посчитанным и снимает со стека.
+  const enter = (label: string): string => {
+    counter += 1;
+    const id = `n${counter}`;
+    const node: MutableNode = { id, label, children: [] };
+    treeNodes.set(id, node);
+
+    const parentId = callStack[callStack.length - 1];
+    if (parentId) treeNodes.get(parentId)!.children.push(node);
+    else rootId = id;
+
+    callStack.push(id);
+    return id;
   };
 
-  const view = (currentId: string, note: string, returned?: number, cached = false): VizState => {
-    const frames = stackToRoot(currentId).map((frame, i, arr) =>
-      i === arr.length - 1 ? { ...frame, returned, cached } : frame,
-    );
+  const finish = (id: string) => {
+    treeNodes.get(id)!.mark = 'done';
+    callStack.pop();
+  };
+
+  const view = (currentId: string, note: string, returned?: number): VizState => {
+    const ids = callStack.includes(currentId) ? callStack : [...callStack, currentId];
+    const frames: CallStackFrameView[] = ids.map((id, i, arr) => {
+      const node = treeNodes.get(id)!;
+      const frame = { id, label: node.label, mark: node.mark };
+      return i === arr.length - 1 ? { ...frame, returned } : frame;
+    });
+
     return {
       kind: 'callstack',
       frames,
@@ -61,54 +74,48 @@ export function* traceFibonacci(n: number): AlgoTrace<VizState, number> {
       caption: note,
     };
   };
+  // #endhide
 
-  function* fib(k: number, parentId: string | null): Generator<Step<VizState>, number, void> {
-    counter += 1;
-    const myId = `n${counter}`;
-    if (!rootId) rootId = myId;
+  function* fibonachi(n: number): Generator<Step<VizState>, number, void> {
+    // #hide
+    const myId = enter(`f${n}`);
+    // #endhide
 
-    parents.set(myId, parentId);
-    const node: MutableNode = { id: myId, label: `f${k}`, children: [] };
-    treeNodes.set(myId, node);
-    if (parentId && treeNodes.has(parentId)) {
-      treeNodes.get(parentId)!.children.push(node);
+    if (n <= 0) { // @zero
+      // #hide
+      finish(myId);
+      // #endhide
+      yield { state: view(myId, `fib(${n}) = 0`, 0), at: 'zero', note: `fib(${n}) — не положительное n, возвращаем 0.` };
+      return 0;
     }
 
-    if (k <= 1) { // @base
-      node.mark = 'done';
-      yield { state: view(myId, `fib(${k}) = ${k}, базовый случай`), at: 'base', note: `fib(${k}) — базовый случай, возвращаем ${k}.` };
-      return k;
+    if (n <= 2) { // @base
+      // #hide
+      finish(myId);
+      // #endhide
+      yield { state: view(myId, `fib(${n}) = 1, базовый случай`, 1), at: 'base', note: `fib(${n}) — базовый случай, возвращаем 1.` };
+      return 1;
     }
 
-    if (memo.has(k)) { // @cache
-      const cached = memo.get(k)!;
-      node.mark = 'done';
-      yield {
-        state: view(myId, `fib(${k}) уже посчитан: ${cached} — берём из кэша`, cached, true),
-        at: 'cache',
-        note: `fib(${k}) уже в кэше (${cached}) — не вычисляем заново, берём готовое.`,
-      };
-      return cached;
-    }
+    yield { state: view(myId, `считаем fib(${n}): нужны fib(${n - 1}) и fib(${n - 2})`), note: `Заходим в fib(${n}). Разбирается на fib(${n - 1}) + fib(${n - 2}).` };
 
-    yield { state: view(myId, `считаем fib(${k}): нужны fib(${k - 1}) и fib(${k - 2})`), note: `Заходим в fib(${k}). Разбирается на fib(${k - 1}) + fib(${k - 2}).` };
+    // @combine
+    const result = (yield* fibonachi(n - 1)) + (yield* fibonachi(n - 2));
 
-    const a = yield* fib(k - 1, myId); // @left
-    const b = yield* fib(k - 2, myId); // @right
-    const result = a + b; // @combine
-
-    memo.set(k, result);
-    node.mark = 'done';
+    // #hide
+    finish(myId);
+    // #endhide
 
     yield {
-      state: view(myId, `fib(${k}) = ${a} + ${b} = ${result}`, result),
+      state: view(myId, `fib(${n}) = ${result}`, result),
       at: 'combine',
-      note: `fib(${k}) = ${a} + ${b} = ${result}. Запоминаем в кэше и возвращаем наверх.`,
+      note: `Обе ветки вернулись: fib(${n}) = ${result}. Отдаём наверх.`,
+      metrics: { comparisons: 1 },
     };
     return result;
   }
 
-  return yield* fib(n, null);
+  return yield* fibonachi(n);
 }
 // #endregion
 
@@ -117,17 +124,17 @@ export const fibonacci = (n: number): number => runTrace(traceFibonacci(n));
 export default defineAlgo({
   meta: {
     slug: 'fibonacci',
-    title: 'Фибоначчи: рекурсия и мемоизация',
+    title: 'Фибоначчи: наивная рекурсия',
     topic: 'recursion',
-    summary: 'Как мемоизация превращает экспоненциальное дерево вызовов в линейное.',
-    complexity: { time: 'O(n) с мемо, O(2ⁿ) без', space: 'O(n)', growth: 'O(n)' },
+    summary: 'Почему прямой перевод формулы в рекурсию стоит экспоненциально.',
+    complexity: { time: 'O(2ⁿ)', space: 'O(n)', growth: 'O(2^n)' },
     difficulty: 'medium',
-    tags: ['рекурсия', 'мемоизация', 'динамическое программирование'],
+    tags: ['рекурсия', 'дерево вызовов', 'мемоизация'],
   },
   raw,
   presets: [
-    { label: 'fib(6)', args: [6] as const, hint: 'Видно перекрытия: fib(3) считается трижды без кэша.' },
-    { label: 'fib(8)', args: [8] as const, hint: 'Дерево разрастается — без кэша это десятки вызовов.' },
+    { label: 'fib(6)', args: [6] as const, hint: 'Видно перекрытия: fib(3) считается трижды.' },
+    { label: 'fib(8)', args: [8] as const, hint: 'Дерево разрастается — это уже 41 вызов ради восьмого числа.' },
     { label: 'fib(1)', args: [1] as const, hint: 'Базовый случай.' },
   ],
   trace: traceFibonacci,

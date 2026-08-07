@@ -18,6 +18,7 @@ import type { VizState } from '@/viz/types';
 export function* traceGroupAnagrams(words: readonly string[]): AlgoTrace<VizState, string[][]> {
   const groups = new Map<string, string[]>();
 
+  // #hide
   const view = (index: number, activeKey?: string): VizState => ({
     kind: 'composite',
     panels: [
@@ -43,6 +44,7 @@ export function* traceGroupAnagrams(words: readonly string[]): AlgoTrace<VizStat
       },
     ],
   });
+  // #endhide
 
   for (let i = 0; i < words.length; i += 1) {
     const key = [...words[i]].sort().join(''); // @key

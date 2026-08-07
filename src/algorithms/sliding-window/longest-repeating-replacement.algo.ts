@@ -13,17 +13,18 @@ import type { VizState } from '@/viz/types';
  * то есть «всё, кроме доминирующего символа, помещается в бюджет замен».
  *
  * Тонкость реализации: частоты уменьшаются по СИМВОЛУ, а не по индексу.
- * Ошибка `counts.set(left, ...)` вместо `counts.set(chars[left], ...)`
- * выглядит безобидно, но кладёт в Map числовой ключ, счётчики символов
- * не убывают, и окно никогда не сжимается корректно.
+ * Ошибка `freq.set(left, ...)` вместо `freq.set(s[left], ...)` выглядит
+ * безобидно, но кладёт в Map числовой ключ, счётчики символов не убывают,
+ * и окно никогда не сжимается корректно.
  */
 export function* traceLongestRepeating(input: string, k: number): AlgoTrace<VizState, number> {
-  const chars = [...input];
-  const counts = new Map<string, number>();
+  const s = [...input];
+  const freq = new Map<string, number>();
   let left = 0;
-  let best = 0;
   let maxCount = 0;
+  let maxLen = 0;
 
+  // #hide
   const view = (right: number, note: string): VizState => ({
     kind: 'composite',
     panels: [
@@ -31,7 +32,7 @@ export function* traceLongestRepeating(input: string, k: number): AlgoTrace<VizS
         title: 'строка',
         view: {
           kind: 'array',
-          data: chars,
+          data: s,
           window: right >= left ? { from: left, to: right } : null,
           pointers: [
             { name: 'left', index: left, tone: 'l' },
@@ -41,16 +42,18 @@ export function* traceLongestRepeating(input: string, k: number): AlgoTrace<VizS
       },
       {
         title: `частоты в окне · самый частый встречается ${maxCount} раз`,
-        view: { kind: 'hashmap', entries: [...counts].map(([key, value]) => ({ key, value })) },
+        view: { kind: 'hashmap', entries: [...freq].map(([key, value]) => ({ key, value })) },
       },
     ],
-    caption: `${note} · лучший ответ ${best}`,
+    caption: `${note} · лучший ответ ${maxLen}`,
   });
+  // #endhide
 
-  for (let right = 0; right < chars.length; right += 1) {
-    const char = chars[right];
-    counts.set(char, (counts.get(char) ?? 0) + 1); // @expand
-    maxCount = Math.max(maxCount, counts.get(char)!);
+  for (let right = 0; right < s.length; right++) {
+    const char = s[right];
+
+    freq.set(char, (freq.get(char) ?? 0) + 1); // @expand
+    maxCount = Math.max(maxCount, freq.get(char)!);
 
     yield {
       state: view(right, `вошёл «${char}»`),
@@ -59,33 +62,32 @@ export function* traceLongestRepeating(input: string, k: number): AlgoTrace<VizS
       metrics: { reads: 1, writes: 1 },
     };
 
-    // Заменить нужно всё, кроме доминирующего символа.
     while (right - left + 1 - maxCount > k) { // @shrink
-      const leaving = chars[left];
-      counts.set(leaving, counts.get(leaving)! - 1); // @decrement
-      left += 1;
+      const leftChar = s[left];
+      // Правка против исходного решения: там стояло freq.set(left, …) —
+      // ключом уходил ИНДЕКС, счётчик символа не убывал, и окно не сжималось.
+      freq.set(leftChar, freq.get(leftChar)! - 1); // @decrement
+      left++;
 
       yield {
-        state: view(right, `вышел «${leaving}»`),
+        state: view(right, `вышел «${leftChar}»`),
         at: 'shrink',
-        note: `Бюджет замен превышен — уменьшаем счётчик «${leaving}» и двигаем left.`,
+        note: `Бюджет замен превышен — уменьшаем счётчик «${leftChar}» и двигаем left.`,
         metrics: { writes: 1 },
       };
     }
 
-    if (right - left + 1 > best) { // @better
-      best = right - left + 1;
+    maxLen = Math.max(maxLen, right - left + 1); // @better
 
-      yield {
-        state: view(right, `новый максимум ${best}`),
-        at: 'better',
-        note: `Окно длиной ${best} допустимо — это лучший ответ на данный момент.`,
-        metrics: { comparisons: 1 },
-      };
-    }
+    yield {
+      state: view(right, `длина окна ${right - left + 1}`),
+      at: 'better',
+      note: `Окно длиной ${right - left + 1} допустимо, лучший ответ ${maxLen}.`,
+      metrics: { comparisons: 1 },
+    };
   }
 
-  return best;
+  return maxLen;
 }
 // #endregion
 

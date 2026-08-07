@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 
 import { tokenize, TOKEN_CLASS } from './highlight';
 import { cn } from '@/ui';
@@ -18,16 +18,14 @@ interface CodeListingProps {
  */
 export const CodeListing = ({ source, activeLine }: CodeListingProps) => {
   const lines = useMemo(() => tokenize(source.lines.join('\n')), [source]);
-  const activeRef = useRef<HTMLDivElement>(null);
-
-  // Скролл списка к активной строке — синхронизация с внешней системой (DOM),
-  // законный эффект. `block: 'nearest'` не дёргает страницу, если строка видна.
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [activeLine]);
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-background/60 py-2 font-mono text-[13px] leading-6">
+    <div
+      // Листинг показывается целиком: высота по содержимому, скролла нет.
+      // overflow-x-auto — страховка на узких экранах, где длинная строка
+      // всё равно не влезает.
+      className="overflow-x-auto rounded-lg border border-border bg-background/60 py-2 font-mono text-[12.5px] leading-[1.55]"
+    >
       {lines.map((tokens, index) => {
         const lineNumber = index + 1;
         const active = lineNumber === activeLine;
@@ -35,7 +33,6 @@ export const CodeListing = ({ source, activeLine }: CodeListingProps) => {
         return (
           <div
             key={lineNumber}
-            ref={active ? activeRef : undefined}
             className={cn(
               'flex w-max min-w-full gap-3 px-3 transition-colors',
               active && 'bg-viz-active/12 shadow-[inset_3px_0_0_var(--viz-active)]',

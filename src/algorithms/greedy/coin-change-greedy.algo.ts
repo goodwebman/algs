@@ -25,57 +25,66 @@ export function* traceCoinChangeGreedy(
   coins: readonly number[],
   amount: number,
 ): AlgoTrace<VizState, number[]> {
+  // В исходном решении номиналы были константой, уже записанной по
+  // убыванию. Здесь они приходят аргументом, поэтому сортируем сами —
+  // на неотсортированном наборе жадность просто не работает.
   const sorted = [...coins].sort((a, b) => b - a);
-  const taken: number[] = [];
-  let left = amount;
+  const result: number[] = [];
+  let sum = amount;
 
-  const view = (marks: Record<number, MarkKind>, note: string): VizState => ({
+  // #hide
+  const view = (coin: number | null, mark: MarkKind, note: string): VizState => ({
     kind: 'composite',
     panels: [
       {
         title: 'монеты (по убыванию)',
-        view: { kind: 'array', data: sorted, marks },
+        view: {
+          kind: 'array',
+          data: sorted,
+          marks: coin === null ? {} : { [sorted.indexOf(coin)]: mark },
+        },
       },
       {
         title: 'взяли',
-        view: { kind: 'array', data: taken.length ? taken : ['—'], marks: {} },
+        view: { kind: 'array', data: result.length ? result : ['—'], marks: {} },
       },
     ],
-    caption: `${note} · осталось разменять: ${left}`,
+    caption: `${note} · осталось разменять: ${sum}`,
   });
+  // #endhide
 
-  for (let i = 0; i < sorted.length; i += 1) { // @skip
-    const coin = sorted[i];
-
-    while (left >= coin) { // @take
-      left -= coin;
-      taken.push(coin);
+  for (const coin of sorted) { // @skip
+    while (sum >= coin) { // @take
+      sum -= coin;
+      result.push(coin);
 
       yield {
-        state: view({ [i]: 'active' }, `берём ${coin}`),
+        state: view(coin, 'active', `берём ${coin}`),
         at: 'take',
-        note: `${coin} помещается в остаток — берём. Осталось ${left}.`,
+        note: `${coin} помещается в остаток — берём. Осталось ${sum}.`,
         metrics: { comparisons: 1, writes: 1 },
       };
     }
 
     yield {
-      state: view({ [i]: 'excluded' }, `${coin} больше не помещается`),
+      state: view(coin, 'excluded', `${coin} больше не помещается`),
       at: 'skip',
-      note: `${coin} больше остатка ${left} — переходим к следующему номиналу.`,
+      note: `${coin} больше остатка ${sum} — переходим к следующему номиналу.`,
       metrics: { comparisons: 1 },
     };
   }
 
   yield {
-    state: view({}, left === 0 ? 'сумма разменяна' : 'разменять не удалось'),
+    state: view(null, 'active', sum === 0 ? 'сумма разменяна' : 'разменять не удалось'),
     note:
-      left === 0
-        ? `Итог: ${taken.length} монет — ${taken.join(' + ')}. Но оптимален ли этот ответ, зависит от набора номиналов.`
-        : `Осталось ${left}, а подходящих монет нет. Жадность зашла в тупик — это ещё один её недостаток.`,
+      sum === 0
+        ? `Итог: ${result.length} монет — ${result.join(' + ')}. Но оптимален ли этот ответ, зависит от набора номиналов.`
+        : `Осталось ${sum}, а подходящих монет нет. Жадность зашла в тупик — это ещё один её недостаток.`,
   };
 
-  return left === 0 ? taken : [];
+  // Правка против исходного решения: там результат отдавался всегда, даже
+  // когда остаток разменять не удалось ([7,5] на 11 → [7], хотя это не размен).
+  return sum === 0 ? result : [];
 }
 // #endregion
 

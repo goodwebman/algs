@@ -60,3 +60,9 @@ if (head > 1000 && head * 2 > items.length) {
 - `splice(0, 1)` — то же самое, что `shift`.
 - `unshift` в цикле — [квадратичное заполнение массива](/t/two-pointers/sorted-squares).
 - `concat` в цикле вместо `push` — новый массив на каждой итерации.
+
+## Как это было решено изначально
+
+<OriginalSource file="data-structures/queue/queue.ts" note="Класс очереди с head/tail-указателями — dequeue за O(1) без сдвига массива." />
+
+<OriginalSource file="data-structures/queue/findNodeBFS.js" note="Здесь обе версии рядом: наивная через `shift()` и оптимизированная через указатель." />

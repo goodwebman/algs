@@ -17,7 +17,7 @@
 ## Та самая «+1»
 
 ```js
-best = Math.max(best, right - left + 1);
+ans = Math.max(ans, right - left + 1);
 ```
 
 Окно `[left, right]` включает **оба** конца. Элементов в нём `right - left + 1`, а не `right - left`.
@@ -58,3 +58,7 @@ best = Math.max(best, right - left + 1);
 ## Решай сам
 
 <Task slug="longest-ones" />
+
+## Как это было решено изначально
+
+<OriginalSource file="sliding-window/longest-ones.js" note="Здесь та самая потерянная единица: `ans = Math.max(ans, right - left)` вместо `right - left + 1`. Ответ всегда занижен ровно на 1." />

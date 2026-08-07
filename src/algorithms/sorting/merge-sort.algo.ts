@@ -22,6 +22,7 @@ export function* traceMergeSort(input: readonly number[]): AlgoTrace<VizState, n
   const nums = [...input];
   const buffer = new Array<number>(nums.length).fill(0);
 
+  // #hide
   const view = (marks: Record<number, MarkKind | undefined>, note: string): VizState => ({
     kind: 'array',
     data: nums,
@@ -29,6 +30,7 @@ export function* traceMergeSort(input: readonly number[]): AlgoTrace<VizState, n
     marks,
     caption: note,
   });
+  // #endhide
 
   function* mergeSort(from: number, to: number): Generator<Step<VizState>, void, void> {
     if (to - from <= 1) return; // @base

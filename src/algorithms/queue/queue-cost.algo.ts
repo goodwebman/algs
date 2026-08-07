@@ -17,6 +17,7 @@ import type { VizState } from '@/viz/types';
  * Платы за память нет: массив того же размера, что и при shift().
  */
 export function* traceQueueCost(input: readonly number[]): AlgoTrace<VizState, void> {
+  // #hide
   const view = (
     shiftQueue: readonly number[],
     headQueue: readonly number[],
@@ -36,6 +37,7 @@ export function* traceQueueCost(input: readonly number[]): AlgoTrace<VizState, v
     ],
     caption: note,
   });
+  // #endhide
 
   const shiftQueue = [...input];
   const headQueue = [...input];

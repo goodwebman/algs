@@ -66,3 +66,7 @@ result.unshift(value);
 ## Решай сам
 
 <Task slug="sorted-squares" />
+
+## Как это было решено изначально
+
+<OriginalSource file="two-pointers/getSquare.js" note="Здесь два бага: функция объявлена как `getSquary`, а вызывается `getSquare` — ReferenceError при запуске. И `unshift` в цикле делает O(n²) вместо заявленного O(n)." />

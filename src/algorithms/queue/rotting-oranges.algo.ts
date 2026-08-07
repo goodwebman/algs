@@ -17,33 +17,40 @@ import type { MarkKind, VizState } from '@/viz/types';
  * Проверка «остался ли свежий» обязательна: если свежий отрезан гнилыми
  * навсегда, ответ −1, а не время последней волны.
  */
-const FRESH = 1;
-const ROTTEN = 2;
-
 export function* traceRottingOranges(gridInput: readonly (readonly number[])[]): AlgoTrace<VizState, number> {
+  // Правка против исходного решения: там заражение шло по массиву
+  // вызывающего, и повторный прогон стартовал с уже сгнившего поля.
   const grid = gridInput.map((row) => [...row]);
   const rows = grid.length;
   const cols = grid[0].length;
 
+  const directions = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ];
+
   const queue: Array<[number, number]> = [];
   let fresh = 0;
+  let minutes = 0;
 
-  for (let r = 0; r < rows; r += 1) {
-    for (let c = 0; c < cols; c += 1) {
-      if (grid[r][c] === ROTTEN) queue.push([r, c]); // @seed
-      else if (grid[r][c] === FRESH) fresh += 1;
+  // init
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (grid[r][c] === 2) queue.push([r, c]); // @seed
+      if (grid[r][c] === 1) fresh++;
     }
   }
 
-  let head = 0;
-  let minutes = 0;
-
+  // #hide
   const view = (marks: Record<string, MarkKind>, note: string): VizState => ({
     kind: 'matrix',
     grid,
     marks,
     caption: `${note} · минут прошло: ${minutes}, свежих осталось: ${fresh}`,
   });
+  // #endhide
 
   yield {
     state: view(Object.fromEntries(queue.map(([r, c]) => [`${r},${c}`, 'active' as const])), 'стартовая волна'),
@@ -52,42 +59,41 @@ export function* traceRottingOranges(gridInput: readonly (readonly number[])[]):
     metrics: { reads: rows * cols },
   };
 
-  const directions = [
-    [-1, 0],
-    [1, 0],
-    [0, -1],
-    [0, 1],
-  ];
+  // Условие fresh > 0 в заголовке цикла — то, из-за чего минуты не
+  // переливаются: как только свежих не осталось, лишняя волна не считается.
+  while (queue.length && fresh > 0) {
+    const levelSize = queue.length;
 
-  while (head < queue.length) {
-    const waveSize = queue.length - head;
-
-    for (let i = 0; i < waveSize; i += 1) {
-      const [r, c] = queue[head++]; // @rotten
+    for (let i = 0; i < levelSize; i++) {
+      const [r, c] = queue.shift()!; // @rotten
 
       for (const [dr, dc] of directions) { // @spread
         const nr = r + dr;
         const nc = c + dc;
 
-        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
-        if (grid[nr][nc] !== FRESH) continue;
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === 1) {
+          grid[nr][nc] = 2;
+          fresh--;
+          queue.push([nr, nc]); // @infect
 
-        grid[nr][nc] = ROTTEN;
-        fresh -= 1;
-        queue.push([nr, nc]); // @infect
-
-        yield {
-          state: view({ [`${nr},${nc}`]: 'swap' }, `заразили [${nr},${nc}]`),
-          at: 'infect',
-          note: `Гнилой апельсин [${r},${c}] заразил свежий [${nr},${nc}].`,
-          metrics: { comparisons: 1, writes: 1 },
-          memoryPeak: queue.length,
-        };
+          yield {
+            state: view({ [`${nr},${nc}`]: 'swap' }, `заразили [${nr},${nc}]`),
+            at: 'infect',
+            note: `Гнилой апельсин [${r},${c}] заразил свежий [${nr},${nc}].`,
+            metrics: { comparisons: 1, writes: 1 },
+            memoryPeak: queue.length,
+          };
+        }
       }
     }
 
-    // Волна прошла. Если в очереди ещё есть заражённые — минута увеличивается.
-    if (head < queue.length) minutes += 1; // @tick
+    minutes++; // @tick
+
+    yield {
+      state: view({}, `волна ${minutes} прошла`),
+      at: 'tick',
+      note: `Волна закончилась — прошла минута ${minutes}. Свежих осталось: ${fresh}.`,
+    };
   }
 
   if (fresh > 0) { // @stuck
@@ -95,15 +101,9 @@ export function* traceRottingOranges(gridInput: readonly (readonly number[])[]):
       state: view({}, 'остались свежие'),
       note: `После всех волн осталось ${fresh} свежих апельсинов — они отрезаны, заразить нельзя.`,
     };
-    return -1;
   }
 
-  yield {
-    state: view(Object.fromEntries(queue.map(([r, c]) => [`${r},${c}`, 'done' as const])), 'всё сгнило'),
-    note: `Все свежие заражены за ${minutes} минут.`,
-  };
-
-  return minutes;
+  return fresh === 0 ? minutes : -1;
 }
 // #endregion
 

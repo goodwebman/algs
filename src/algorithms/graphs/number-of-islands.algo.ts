@@ -1,6 +1,6 @@
 import raw from './number-of-islands.algo.ts?raw';
 import { defineAlgo } from '@/core/algo';
-import { runTrace, type AlgoTrace, type Step } from '@/core/trace';
+import { runTrace, type AlgoTrace } from '@/core/trace';
 import type { MarkKind, VizState } from '@/viz/types';
 
 // #region show
@@ -15,87 +15,95 @@ import type { MarkKind, VizState } from '@/viz/types';
  *   для каждой непосещённой вершины → запустить обход → счётчик += 1
  * Обход помечает всю компоненту целиком, поэтому второй раз мы в неё
  * не зайдём. DFS или BFS — без разницы, компоненту нужно просто «залить».
+ *
+ * Отдельного множества visited нет: посещённая суша сразу превращается
+ * в воду («0»). Это и есть пометка — второй раз в неё не зайдёшь.
  */
-const LAND = '1';
-
 export function* traceNumberOfIslands(gridInput: readonly (readonly string[])[]): AlgoTrace<VizState, number> {
+  // Правка против исходного решения: там заливка шла по массиву вызывающего
+  // и после первого прогона от островов ничего не оставалось. Работаем на копии.
   const grid = gridInput.map((row) => [...row]);
-  const rows = grid.length;
-  const cols = grid[0]?.length ?? 0;
-  const visited = new Set<string>();
-  let islands = 0;
+  if (!grid.length) return 0;
 
+  const rows = grid.length;
+  const cols = grid[0].length;
+  let count = 0;
+
+  // #hide
   const marks: Record<string, MarkKind> = {};
 
   const view = (note: string): VizState => ({
     kind: 'matrix',
     grid,
     marks: { ...marks },
-    caption: `${note} · островов найдено: ${islands}`,
+    caption: `${note} · островов найдено: ${count}`,
   });
+  // #endhide
 
+  // Четыре направления движения
   const directions = [
-    [-1, 0],
-    [1, 0],
-    [0, -1],
-    [0, 1],
-  ] as const;
+    [1, 0], // вниз
+    [-1, 0], // вверх
+    [0, 1], // вправо
+    [0, -1], // влево
+  ];
 
-  /** Заливка компоненты: помечаем всю сушу, достижимую отсюда. */
-  function* flood(startRow: number, startCol: number): Generator<Step<VizState>, void, void> {
-    const stack: Array<[number, number]> = [[startRow, startCol]];
-    visited.add(`${startRow},${startCol}`);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (grid[r][c] === '1') { // @scan
+        count++; // @newIsland
 
-    while (stack.length > 0) {
-      const [r, c] = stack.pop()!; // @pop
-      marks[`${r},${c}`] = 'done';
+        // Начинаем BFS
+        const queue: Array<[number, number]> = [[r, c]];
+        grid[r][c] = '0'; // помечаем посещённым
+        // #hide
+        marks[`${r},${c}`] = 'done';
+        // #endhide
 
-      yield {
-        state: view(`заливаем остров #${islands} с [${r},${c}]`),
-        at: 'pop',
-        note: `Ячейка [${r},${c}] принадлежит острову #${islands}.`,
-        metrics: { reads: 1 },
-      };
+        yield {
+          state: view(`нашли новый остров в [${r},${c}]`),
+          at: 'newIsland',
+          note: `[${r},${c}] — суша, в которой мы ещё не были. Это новый остров, номер ${count}.`,
+          metrics: { comparisons: 1 },
+        };
 
-      for (const [dr, dc] of directions) { // @neighbors
-        const nr = r + dr;
-        const nc = c + dc;
-        const key = `${nr},${nc}`;
+        while (queue.length > 0) {
+          // shift() на очереди — O(n) на каждый вызов (см. разбор «Цена shift»).
+          // На поле учебного размера это незаметно, на больших — уже нет.
+          const [x, y] = queue.shift()!; // @pop
 
-        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
-        if (grid[nr][nc] !== LAND || visited.has(key)) continue;
+          for (const [dx, dy] of directions) { // @neighbors
+            const nx = x + dx;
+            const ny = y + dy;
 
-        // Помечаем при ДОБАВЛЕНИИ в стек, а не при обработке — иначе
-        // одна и та же ячейка попадёт в стек несколько раз.
-        visited.add(key); // @visit
-        stack.push([nr, nc]);
+            if (nx >= 0 && nx < rows && ny >= 0 && ny < cols && grid[nx][ny] === '1') {
+              // помечаем посещённым
+              grid[nx][ny] = '0'; // @visit
+              // #hide
+              marks[`${nx},${ny}`] = 'done';
+              // #endhide
+              queue.push([nx, ny]);
+
+              yield {
+                state: view(`заливаем остров #${count} с [${x},${y}]`),
+                at: 'visit',
+                note: `Сосед [${nx},${ny}] — та же суша. Топим его и кладём в очередь.`,
+                metrics: { comparisons: 1, writes: 1 },
+                memoryPeak: queue.length,
+              };
+            }
+          }
+        }
       }
-    }
-  }
-
-  for (let r = 0; r < rows; r += 1) {
-    for (let c = 0; c < cols; c += 1) {
-      if (grid[r][c] !== LAND || visited.has(`${r},${c}`)) continue; // @scan
-
-      islands += 1; // @newIsland
-
-      yield {
-        state: view(`нашли новый остров в [${r},${c}]`),
-        at: 'newIsland',
-        note: `[${r},${c}] — суша, в которой мы ещё не были. Это новый остров, номер ${islands}.`,
-        metrics: { comparisons: 1 },
-      };
-
-      yield* flood(r, c);
     }
   }
 
   yield {
     state: view('обход завершён'),
-    note: `Всего островов: ${islands}.`,
+    note: `Всего островов: ${count}.`,
   };
 
-  return islands;
+  return count;
 }
 // #endregion
 
@@ -107,11 +115,11 @@ export default defineAlgo({
     slug: 'number-of-islands',
     title: 'Количество островов',
     topic: 'graphs',
-    summary: 'Подсчёт компонент связности в сетке через заливку DFS.',
+    summary: 'Подсчёт компонент связности в сетке через заливку BFS.',
     complexity: { time: 'O(rows · cols)', space: 'O(rows · cols)', growth: 'O(n)' },
     difficulty: 'medium',
     leetcode: { id: 200, title: 'number-of-islands' },
-    tags: ['графы', 'DFS', 'компоненты связности', 'сетка'],
+    tags: ['графы', 'BFS', 'компоненты связности', 'сетка'],
   },
   raw,
   presets: [

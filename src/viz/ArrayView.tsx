@@ -6,17 +6,39 @@ import { cn } from '@/ui';
 
 const MAX_BAR_HEIGHT = 120;
 
-const PointerFlag = ({ pointer }: { pointer: Pointer }) => (
-  <motion.div
-    layout
-    className="pointer-events-none absolute -top-1 left-1/2 flex -translate-x-1/2 -translate-y-full flex-col items-center"
-    style={{ color: POINTER_COLOR[pointer.tone ?? 'scan'] }}
-  >
-    <span className="font-mono text-[11px] leading-none font-bold whitespace-nowrap">{pointer.name}</span>
-    <svg width="10" height="7" viewBox="0 0 10 7" aria-hidden="true">
-      <path d="M5 7 0 0h10z" fill="currentColor" />
-    </svg>
-  </motion.div>
+/**
+ * Стопка указателей над одной ячейкой.
+ *
+ * Указатели часто сходятся на одном индексе (встреча left и right, slow
+ * догнал fast). Каждый рисуется абсолютно, поэтому при совпадении они
+ * накладывались бы друг на друга — вместо этого выкладываем их в столбик,
+ * а стрелку рисуем только у нижнего: она указывает на ячейку, и двух
+ * стрелок в одну точку быть не должно.
+ */
+const PointerStack = ({ pointers }: { pointers: Pointer[] }) => (
+  <div className="pointer-events-none absolute bottom-full left-1/2 flex -translate-x-1/2 flex-col items-center pb-0.5">
+    {pointers.map((pointer, index) => (
+      <span
+        key={pointer.name}
+        className="font-mono text-[11px] leading-tight font-bold whitespace-nowrap"
+        style={{ color: POINTER_COLOR[pointer.tone ?? 'scan'] }}
+      >
+        {pointer.name}
+        {index === pointers.length - 1 && (
+          <svg
+            width="10"
+            height="6"
+            viewBox="0 0 10 6"
+            aria-hidden="true"
+            className="mx-auto block"
+            style={{ color: POINTER_COLOR[pointer.tone ?? 'scan'] }}
+          >
+            <path d="M5 6 0 0h10z" fill="currentColor" />
+          </svg>
+        )}
+      </span>
+    ))}
+  </div>
 );
 
 /**
@@ -39,10 +61,16 @@ export const ArrayView = ({ state }: { state: ArrayState }) => {
   }
 
   const outside = pointers.filter((p) => p.index < 0 || p.index >= data.length);
+  const maxStack = Math.max(0, ...[...byIndex.values()].map((list) => list.length));
 
   return (
     <figure className="flex flex-col items-center gap-3">
-      <div className="w-full overflow-x-auto pt-8 pb-1">
+      {/* Отступ сверху рассчитан на самую высокую стопку указателей:
+          у каждого ~14px строки, плюс стрелка. */}
+      <div
+        className="w-full overflow-x-auto pb-1"
+        style={{ paddingTop: `${12 + maxStack * 14}px` }}
+      >
         <div className="mx-auto flex w-max items-end gap-1.5 px-2">
           <AnimatePresence initial={false}>
             {data.map((value, index) => {
@@ -60,11 +88,7 @@ export const ArrayView = ({ state }: { state: ArrayState }) => {
                   transition={{ type: 'spring', stiffness: 320, damping: 30 }}
                   className="relative flex flex-col items-center gap-1"
                 >
-                  {cellPointers.map((pointer, i) => (
-                    <div key={pointer.name} style={{ marginTop: i === 0 ? 0 : -18 }}>
-                      <PointerFlag pointer={pointer} />
-                    </div>
-                  ))}
+                  {cellPointers.length > 0 && <PointerStack pointers={cellPointers} />}
 
                   <div
                     className={cn(
