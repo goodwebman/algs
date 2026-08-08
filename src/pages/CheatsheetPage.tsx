@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 
 import { algorithms } from '@/algorithms/registry';
 import { topicById } from '@/content/topics';
+import { ApiReference } from '@/reference/ApiReference';
 import { ComplexityChart } from '@/viz/ComplexityChart';
 import { UIBadge } from '@/ui';
 
@@ -40,7 +41,8 @@ const CheatsheetPage = () => {
       <header>
         <h1 className="text-3xl font-bold">Шпаргалка</h1>
         <p className="mt-2 text-muted-foreground">
-          Сложности операций и всех разобранных алгоритмов в одном месте.
+          Сложности операций, все разобранные алгоритмы и справочник по встроенным методам —
+          в одном месте.
         </p>
       </header>
 
@@ -112,6 +114,16 @@ const CheatsheetPage = () => {
           </table>
         </div>
         {rows.length === 0 && <UIBadge variant="outline">пока пусто</UIBadge>}
+      </section>
+
+      <section>
+        <h2 className="mb-1 text-xl font-semibold">Справочник по встроенным методам</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Массивы, строки, объекты, Set и Map — с примерами от простых к сложным. Все примеры
+          исполняются в тестах, поэтому значения в комментариях `// →` не могут разойтись с
+          реальностью.
+        </p>
+        <ApiReference />
       </section>
     </div>
   );
