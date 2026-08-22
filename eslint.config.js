@@ -9,7 +9,8 @@ export default tseslint.config(
   // Линтер там прав по существу (не определённый console, неиспользуемые
   // объявления, `ev` без стрелки в event-emitter), но править эти файлы
   // нельзя: они показываются на сайте как исторический исходник.
-  { ignores: ['dist', 'coverage', 'node_modules', 'src/ui/**', 'originals/**'] },
+  // test.js в корне — черновик для ручной практики, а не часть сборки.
+  { ignores: ['dist', 'coverage', 'node_modules', 'src/ui/**', 'originals/**', 'test.js'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   // Именно flat.recommended: у пресета `recommended-latest` в v7

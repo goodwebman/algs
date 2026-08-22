@@ -361,6 +361,68 @@ byLetter['Б'];   // → ['Борис']`,
           returns: 'string',
           complexity: 'O(k) — копируется вырезанное',
           examples: [
+            `// ГЛАВНОЕ: индекс — это не символ, а позиция РАЗРЕЗА между символами.
+// slice(start, end) режет по двум позициям: start входит, end — нет.
+//
+//   0   1   2   3   4   5   6   7   8   9   10  ← позиции разрезов
+//   │ j │ a │ v │ a │ s │ c │ r │ i │ p │ t │
+//
+//   └───────────────┘  slice(0, 4)  → 'java'
+//                   └───────────┘  slice(4, 7)  → 'scr'
+//                   └───────────────────────┘  slice(4)  → 'script'
+
+'javascript'.slice(0, 4);   // → 'java'
+'javascript'.slice(4, 7);   // → 'scr'
+'javascript'.slice(4);      // → 'script'
+
+// длина куска всегда end - start, считать символы не нужно
+'javascript'.slice(4, 7).length;   // → 3`,
+            `// два следствия правила «end не включается», которые всё расставляют по местам:
+
+// 1) slice(0, i) и slice(i) стыкуются без нахлёста и без дырки
+const s = 'javascript';
+s.slice(0, 4) + s.slice(4) === s;   // → true
+
+// 2) один символ по индексу i — это slice(i, i + 1), а не slice(i, i)
+s.slice(4, 5);   // → 's'
+s.slice(4, 4);   // → '' — пустой разрез в одной точке
+s[4];            // → 's'
+s.at(-1);        // → 't'`,
+            `// отрицательный индекс = отсчёт с конца. Формула перевода: i + length
+//
+//   0   1   2   3   4   5   6   7   8   9   10
+//   │ j │ a │ v │ a │ s │ c │ r │ i │ p │ t │
+// -10  -9  -8  -7  -6  -5  -4  -3  -2  -1      ← те же позиции с конца
+//
+//                   └───────────────────────┘  slice(-6)     = slice(4)
+//                   └───────────┘  slice(-6, -3)  = slice(4, 7)
+
+-6 + 10;   // → 4 — длина строки 10
+-3 + 10;   // → 7
+
+'javascript'.slice(-6);       // → 'script'
+'javascript'.slice(-6, -3);   // → 'scr'
+'javascript'.slice(-1);       // → 't' — последний символ`,
+            `// края: выход за границы молча прижимается, start > end даёт пустоту
+const s = 'javascript';   // длина 10
+
+s.slice(4, 0);     // → '' — НЕ переворачивает аргументы (в отличие от substring)
+s.slice(0, 99);    // → 'javascript' — end больше длины = длина
+s.slice(-99);      // → 'javascript' — start меньше нуля = 0
+s.slice(99);       // → ''
+s.slice();         // → 'javascript' — без аргументов вся строка
+
+// -0 это 0, а не «конец строки» — редкая, но злая опечатка
+s.slice(1, -0);    // → ''
+s.slice(1, -1);    // → 'avascrip'`,
+            `// «взять n символов начиная с i» — формула, которую стоит запомнить
+const s = 'javascript';
+const i = 4;
+const n = 3;
+
+s.slice(i, i + n);   // → 'scr'
+s.substr(i, n);      // → 'scr' — то же, но метод устаревший
+s.slice(i, n);       // → '' — те же цифры без сложения дают пустоту!`,
             `const s = 'javascript';
 
 s.slice(0, 4);    // → 'java'
@@ -394,24 +456,137 @@ text.length > 8;      // → true — рисуем кнопку раскрыти
           summary: 'Тот же кусок, но отрицательные индексы считает нулём, а перепутанные аргументы молча меняет местами.',
           returns: 'string',
           examples: [
-            `'javascript'.substring(0, 4);   // → 'java'
-'javascript'.substring(4, 0);   // → 'java' — аргументы поменялись местами!
-'javascript'.substring(-6);     // → 'javascript' — минус стал нулём`,
+            `// аргументы те же, что у slice: (start, end), end не включается
+//
+//   0   1   2   3   4   5   6   7   8   9   10
+//   │ j │ a │ v │ a │ s │ c │ r │ i │ p │ t │
+//
+//   └───────────────┘  substring(0, 4)  → 'java'
+
+'javascript'.substring(0, 4);   // → 'java'
+'javascript'.substring(4, 7);   // → 'scr'
+'javascript'.substring(4);      // → 'script'
+
+// на «нормальных» аргументах substring и slice неотличимы
+'javascript'.substring(2, 5) === 'javascript'.slice(2, 5);   // → true`,
+            `// СЮРПРИЗ 1: перепутанные местами аргументы substring молча меняет обратно
+//
+//   0   1   2   3   4   5   6   7   8   9   10
+//   │ j │ a │ v │ a │ s │ c │ r │ i │ p │ t │
+//   ▲ end = 0       ▲ start = 4
+//   └───────────────┘  substring сам развернёт это в (0, 4)
+
+'javascript'.substring(4, 0);   // → 'java' — как будто написали (0, 4)
+'javascript'.slice(4, 0);       // → '' — slice не спасает, и это честнее
+
+// баг ловится так: вычисленные границы съехали, а результат «выглядит нормально»
+const s = 'javascript';
+const from = 4;
+const to = 2;
+s.substring(from, to);   // → 'va' — кусок есть, хотя границы бессмысленные
+s.slice(from, to);       // → '' — сразу видно, что что-то не так`,
+            `// СЮРПРИЗ 2: отрицательные и NaN превращаются в 0, отсчёта с конца нет
+'javascript'.substring(-6);       // → 'javascript'
+'javascript'.slice(-6);           // → 'script' — вот тут разница видна
+
+'javascript'.substring(2, -5);    // → 'ja' — стало (2, 0), потом развернулось в (0, 2)
+'javascript'.slice(2, -5);        // → 'vas'
+
+// «последние 4 символа» через substring без длины строки не написать
+const card = '4276380012345678';
+card.slice(-4);                      // → '5678'
+card.substring(card.length - 4);     // → '5678' — приходится считать вручную
+card.substring(-4);                  // → '4276380012345678' — так не работает`,
           ],
-          gotcha: 'Именно из-за этих двух сюрпризов по умолчанию бери slice.',
+          gotcha:
+            'Два отличия от slice: substring меняет перепутанные аргументы местами и не понимает отрицательные индексы (превращает их в 0). Обе «услуги» прячут баги, поэтому по умолчанию бери slice.',
         },
         {
           sig: 'str.substr(start, length)',
           key: 'substr',
-          summary: 'Кусок заданной длины от позиции. Устаревший — оставлен только для совместимости.',
+          summary: 'Кусок заданной длины от позиции: второй аргумент — не конец, а КОЛИЧЕСТВО символов. Устаревший.',
           returns: 'string',
           since: 'deprecated',
           examples: [
-            `'javascript'.substr(4, 3);   // → 'scr'
+            `// единственный из трёх, у кого второй аргумент — длина, а не граница
+//
+//   0   1   2   3   4   5   6   7   8   9   10
+//   │ j │ a │ v │ a │ s │ c │ r │ i │ p │ t │
+//                   ▲ start = 4
+//                   └───────────┘  length = 3 (штуки, а не позиция)
 
-// современный аналог
-'javascript'.slice(4, 4 + 3);   // → 'scr'`,
+'javascript'.substr(4, 3);   // → 'scr'
+'javascript'.slice(4, 3);    // → '' — те же цифры в slice дают пустоту!
+'javascript'.slice(4, 7);    // → 'scr' — end = start + length = 4 + 3
+
+// перевод в slice — единственное, что нужно помнить про substr
+const toSlice = (s, start, length) => s.slice(start, start + length);
+toSlice('javascript', 4, 3);   // → 'scr'`,
+            `// один и тот же вызов (2, 5) на трёх методах — вот вся разница на одном экране
+'javascript'.slice(2, 5);       // → 'vas' — с 2-й позиции ДО 5-й
+'javascript'.substring(2, 5);   // → 'vas' — то же самое
+'javascript'.substr(2, 5);      // → 'vascr' — с 2-й позиции 5 ШТУК`,
+            `// края: отрицательный start считается с конца, отрицательная длина — просто пусто
+'javascript'.substr(-6, 3);   // → 'scr' — start с конца работает
+'javascript'.substr(-6);      // → 'script'
+'javascript'.substr(4);       // → 'script' — без длины до конца
+'javascript'.substr(4, 0);    // → '' — ноль символов
+'javascript'.substr(4, -1);   // → '' — отрицательная длина не «с конца»
+'javascript'.substr(4, 99);   // → 'script' — длиннее строки не страшно`,
           ],
+          gotcha:
+            'substr помечен как deprecated (Annex B) — в новом коде не пиши, а в чужом читай внимательно: substr(2, 5) и slice(2, 5) дают разное. Замена: slice(start, start + length).',
+        },
+        {
+          sig: 'slice / substring / substr — как не путать',
+          key: null,
+          summary: 'Три метода с почти одинаковыми сигнатурами и разным поведением. Одна таблица, чтобы закрыть вопрос.',
+          examples: [
+            `// одни и те же аргументы (2, 5) на строке 'javascript':
+'javascript'.slice(2, 5);       // → 'vas'
+'javascript'.substring(2, 5);   // → 'vas'
+'javascript'.substr(2, 5);      // → 'vascr'
+
+//               slice(a, b)     substring(a, b)   substr(a, len)
+//  2-й арг.     граница «до»    граница «до»      ДЛИНА куска
+//  a вкл.?      да              да                да
+//  b вкл.?      НЕТ             НЕТ               (это не граница)
+//  a > b        '' пусто        меняет местами    —
+//  a < 0        с конца         → 0               с конца
+//  b < 0        с конца         → 0               → '' (длина ≤ 0)
+//  статус       бери его        legacy            deprecated`,
+            `// мнемоника: slice и substring — «ОТ и ДО», substr — «ОТ и СКОЛЬКО».
+// длиннее имя (substring) — «умнее» ведёт себя с ошибками, и это плохо: прячет баги.
+// короче имя (substr) — единственный со счётчиком, единственный deprecated.
+
+const s = 'javascript';
+
+// «до конца» — все трое одинаково
+s.slice(4) === s.substring(4);   // → true
+s.slice(4) === s.substr(4);      // → true
+
+// «с конца» — только slice и substr
+s.slice(-4);       // → 'ript'
+s.substr(-4);      // → 'ript'
+s.substring(-4);   // → 'javascript'
+
+// перепутанные границы — только substring «чинит»
+s.substring(7, 4);   // → 'scr'
+s.slice(7, 4);       // → ''`,
+            `// то же деление у массивов, только имена другие:
+//   строка: slice (ОТ и ДО)   / substr (ОТ и СКОЛЬКО, мёртвый)
+//   массив: slice (ОТ и ДО)   / splice (ОТ и СКОЛЬКО, мутирует!)
+//
+// одинаковые цифры — разный смысл второго аргумента:
+'abcde'.slice(1, 3);          // → 'bc' — до позиции 3
+['a','b','c','d','e'].slice(1, 3);   // → ['b', 'c'] — тоже до позиции 3
+
+const arr = ['a', 'b', 'c', 'd', 'e'];
+arr.splice(1, 3);   // → ['b', 'c', 'd'] — а тут 3 это «три штуки»
+arr;                // → ['a', 'e'] — и исходник изменён`,
+          ],
+          gotcha:
+            'Правило на все встроенные (start, end) в JS — start включается, end нет. Отсюда: длина = end - start, и x.slice(0, i) + x.slice(i) собирается обратно в x. Исключения ровно два, и оба про «количество»: substr и splice.',
         },
         {
           sig: 'str.concat(...strings)',
